@@ -95,9 +95,8 @@ local function get_mask_points(sprite, msk_layer, frameNumber)
   if c ~= nil then
     for it in c.image:pixels() do
       local pixelValue = it() -- get pixel
-      --app.alert("("..tostring(it.x)..","..tostring(it.y)..")A:"..tostring(app.pixelColor.rgbaA(it())))
       if app.pixelColor.rgbaA(pixelValue) > 0 then
-        points[#points + 1] = Point(it.x+c.position.x, it.y+c.position.y)
+        points[#points + 1] = Point(it.x + c.position.x, it.y + c.position.y)
       end
     end
   end
@@ -124,9 +123,8 @@ end
 -------------------------------------------
 -- mask process utils
 -------------------------------------------
-local function copy_area(sprite, mask_area, msked_layer, frameNumber)
-  -- マスク対象エリアを選択
-  sprite.selection:select(mask_area)
+local function copy_area(sprite, msked_layer, frameNumber)
+  local msked_layer_visible = msked_layer.isVisible
 
   -- マスク対象エリアをコピー（マージ済み）
   app.command.CopyMerged()
@@ -142,8 +140,6 @@ local function copy_area(sprite, mask_area, msked_layer, frameNumber)
   app.command.Paste()
 
   msked_layer.isVisible = msked_layer_visible
-  
-  sprite.selection:deselect()
 end
 
 local function copy_dep_marged_image(sprite, msk_layer, msked_layer, frameNumber)
@@ -154,11 +150,17 @@ local function copy_dep_marged_image(sprite, msk_layer, msked_layer, frameNumber
     do return end
   end
 
+  sprite.selection:deselect()
+  local s = Selection()
   for i = 1,#mask_area do
     local p = mask_area[i]
     local r = Rectangle(p.x, p.y, 1 ,1)
-    copy_area(sprite, r, msked_layer, frameNumber)
+    -- マスク対象エリアを選択
+    sprite.selection:add(Selection(r))
+    -- sprite.selection:select(r)
   end
+  copy_area(sprite, msked_layer, frameNumber)
+  sprite.selection:deselect()
 end
 
 local function copy_marged_image(sprite, msk_layer, msked_layer, frameNumber)
