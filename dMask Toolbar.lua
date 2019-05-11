@@ -251,10 +251,12 @@ end
 
 function update()
   app.transaction(
-  function()
-    update_masked_image()
-  end
+    function()
+      update_masked_image()
+    end
+  )
 end
+
 local dlg = Dialog("dMask Toolbar")
 dlg
   :button{text="Update",onclick=update}
