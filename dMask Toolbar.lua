@@ -19,6 +19,15 @@ local function starts_with(str, start)
     end
 end
 
+-- 指定されたレイヤーを探す
+local function search_masked_layer(sprite, layer_name)
+  for i = #sprite.layers, 1, -1 do
+    if sprite.layers[i].isImage and sprite.layers[i].name == layer_name then
+      return sprite.layers[i]
+    end
+  end
+  return nil
+end
 
 -- 現在の表示状態を取得する
 function visible_list(sprite)
@@ -120,9 +129,24 @@ local function get_mask_points(sprite, msk_layer, frameNumber)
   return points
 end
 
+local function get_masked_(name)
+  if #MASKED_IMG_LAYER_NAME >= #name then
+    return MASKED_IMG_LAYER_NAME
+  end
+  app.alert(name:sub(#MASK_LAYER_NAME + 1, #name))
+  return MASKED_IMG_LAYER_NAME .. name:sub(#MASK_LAYER_NAME + 1, #name)
+end
+
 -- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
 local function get_masked_layer_name(msk_layer)
-  return MASKED_IMG_IMAGE_NAME + msk_layer.name:sub(#MASK_LAYER_NAME, #msk_layer.name)
+  return get_masked_(msk_layer.name)
+end
+local function get_self_masked_layer_name(msk_layer)
+  return get_masked_(msk_layer.data)
+end
+-- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
+local function get_cel_masked_layer_name(msk_layer, frameNumber)
+  return get_masked_(msk_layer:cel(frameNumber).data)
 end
 
 -- 全マスクレイヤーを取得する
@@ -166,7 +190,7 @@ local function copy_dep_marged_image(sprite, msk_layer, msked_layer, frameNumber
   -- マスク対象エリアを取得
   local mask_area = get_mask_points(sprite, msk_layer, frameNumber)
   if mask_area == nil then
-    do return end
+    return
   end
 
   sprite.selection:deselect()
@@ -216,9 +240,13 @@ local function copy_marged_image(sprite, msk_layer, msked_layer, frameNumber)
   sprite.selection:deselect()
 end
 
-local function get_masked_layer(sprite)
+local function get_default_masked_layer(sprite)
   if sprite.layers[#sprite.layers].name == MASKED_IMG_LAYER_NAME then
     return sprite.layers[#sprite.layers]
+  end
+  local deflayer = search_masked_layer(sprite, MASKED_IMG_LAYER_NAME)
+  if deflayer ~= nil then
+    return deflayer
   else
     sprite:newLayer()
     local firstLayer = sprite.layers[#sprite.layers]
@@ -232,7 +260,7 @@ end
 -------------------------------------------
 function update_masked_image()
   local sprite = app.activeSprite
-  local masked_layer = get_masked_layer(sprite)
+  local masked_layer = get_default_masked_layer(sprite)
   local visbles = visible_list(sprite)
 
   unvisible_all_layer(sprite)
@@ -249,19 +277,30 @@ function update_masked_image()
   for i = 1,#sprite.layers do
     local layer = sprite.layers[i]
     if is_mask_layer(layer) then
-      for j = 1,#sprite.frames do
-        --copy_marged_image(sprite, layer, masked_layer, j)
+        local each_mask_layer = search_masked_layer(sprite, get_masked_layer_name(layer))
+        for j = 1,#sprite.frames do
+        if each_mask_layer ~= nil then
+          copy_dep_marged_image(sprite, layer, each_mask_layer, j)
+        end
         copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
     restore_layer(layer, visbles, i)
     if is_self_mask_layer(layer) then
+      local each_mask_layer = search_masked_layer(sprite, get_self_masked_layer_name(layer))
       for j = 1,#sprite.frames do
+        if each_mask_layer ~= nil then
+          copy_dep_marged_image(sprite, layer, each_mask_layer, j)
+        end
         copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
     for j = 1,#sprite.frames do
       if is_self_mask_cel(layer, j) then
+        local each_mask_layer = search_masked_layer(sprite, get_masked_layer_name(layer))
+        if each_mask_layer ~ nil then
+          copy_dep_marged_image(sprite, layer, each_mask_layer, j)
+        end
         copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
@@ -291,5 +330,6 @@ end
 
 local dlg = Dialog("dMask Toolbar")
 dlg
-  :button{text="Update",onclick=update}
+  :button{text="Update", onclick=update}
+  -- :combobox{ id="mode", label="Mask Mode", option="Multiple", options={ "Single", "Multiple" } }
   :show{wait=false}
