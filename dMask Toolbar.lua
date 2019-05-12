@@ -12,7 +12,11 @@ local MASK_LAYER_NAME = "msk_"
 -- utils
 -------------------------------------------
 local function starts_with(str, start)
-    return str:sub(1, #start) == start
+    if str == nil or #str < #start then
+      return false
+    else
+      return str:sub(1, #start) == start
+    end
 end
 
 
@@ -25,10 +29,12 @@ function visible_list(sprite)
   return visbles
 end
 
--- 全レイヤーを不可視状態にする
+-- 全イメージレイヤーを不可視状態にする
 function unvisible_all_layer(sprite)
   for i = 1,#sprite.layers do
-    sprite.layers[i].isVisible = false
+    if sprite.layers[i].isImage then
+      sprite.layers[i].isVisible = false
+    end
   end
 end
 
@@ -47,6 +53,11 @@ end
 -- 指定されたレイヤーがマスクであるかチェックする
 local function is_mask_layer(layer)
   return layer.isImage and starts_with(layer.name, MASK_LAYER_NAME)
+end
+
+-- 指定されたレイヤーがセルフマスクであるかチェックする
+local function is_self_mask_layer(layer)
+  return layer.isImage and starts_with(layer.data, MASK_LAYER_NAME)
 end
 
 -- bug対策：レイヤーからセルを取得できないため、スプライトのセル一覧から取得する
@@ -199,10 +210,6 @@ local function copy_marged_image(sprite, msk_layer, msked_layer, frameNumber)
   sprite.selection:deselect()
 end
 
-local function update_masked_image_layer(sprite, msk_layer)
-  return
-end
-
 local function get_masked_layer(sprite)
   if sprite.layers[#sprite.layers].name == MASKED_IMG_LAYER_NAME then
     return sprite.layers[#sprite.layers]
@@ -242,6 +249,11 @@ function update_masked_image()
       end
     end
     restore_layer(layer, visbles, i)
+    if is_self_mask_layer(layer) then
+      for j = 1,#sprite.frames do
+        copy_dep_marged_image(sprite, layer, masked_layer, j)
+      end
+    end
   end
   restore_all_layer(sprite, visbles)
 
