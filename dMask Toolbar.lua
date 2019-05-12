@@ -280,7 +280,11 @@ end
 function update()
   app.transaction(
     function()
+      local l = app.activeLayer
+      local f = app.activeFrame 
       update_masked_image()
+      app.activeLayer = l
+      app.activeFrame = f
     end
   )
 end
