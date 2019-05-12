@@ -60,6 +60,12 @@ local function is_self_mask_layer(layer)
   return layer.isImage and starts_with(layer.data, MASK_LAYER_NAME)
 end
 
+-- 指定されたレイヤーがセルフマスクであるかチェックする
+local function is_self_mask_cel(layer, frameNumber)
+  local c = layer:cel(frameNumber)
+  return c ~= nil and starts_with(c.data, MASK_LAYER_NAME)
+end
+
 -- bug対策：レイヤーからセルを取得できないため、スプライトのセル一覧から取得する
 local function search_target_cel(sprite, msk_layer, frameNumber)
   for i = 1,#sprite.cels do
@@ -251,6 +257,11 @@ function update_masked_image()
     restore_layer(layer, visbles, i)
     if is_self_mask_layer(layer) then
       for j = 1,#sprite.frames do
+        copy_dep_marged_image(sprite, layer, masked_layer, j)
+      end
+    end
+    for j = 1,#sprite.frames do
+      if is_self_mask_cel(layer, frameNumber) then
         copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
