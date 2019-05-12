@@ -124,6 +124,9 @@ end
 -- mask process utils
 -------------------------------------------
 local function copy_area(sprite, msked_layer, frameNumber)
+  -- コピー操作をするフレームを選択
+  app.activeFrame = sprite.frames[frameNumber]
+
   local msked_layer_visible = msked_layer.isVisible
 
   -- マスク対象エリアをコピー（マージ済み）
@@ -131,7 +134,6 @@ local function copy_area(sprite, msked_layer, frameNumber)
 
   -- ペースト先を選択
   app.activeLayer = msked_layer
-  app.activeFrame = sprite.frames[frameNumber]
 
   -- ペーストのために表示
   msked_layer.isVisible = true
@@ -151,7 +153,6 @@ local function copy_dep_marged_image(sprite, msk_layer, msked_layer, frameNumber
   end
 
   sprite.selection:deselect()
-  local s = Selection()
   for i = 1,#mask_area do
     local p = mask_area[i]
     local r = Rectangle(p.x, p.y, 1 ,1)
@@ -159,7 +160,9 @@ local function copy_dep_marged_image(sprite, msk_layer, msked_layer, frameNumber
     sprite.selection:add(Selection(r))
     -- sprite.selection:select(r)
   end
-  copy_area(sprite, msked_layer, frameNumber)
+  if sprite.selection.isEmpty == false then
+    copy_area(sprite, msked_layer, frameNumber)
+  end
   sprite.selection:deselect()
 end
 
