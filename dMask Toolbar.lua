@@ -15,7 +15,7 @@ local function starts_with(str, start)
     if str == nil or #str < #start then
       return false
     else
-      return str:sub(1, #start) == start
+      return str == start or str:sub(1, #start) == start
     end
 end
 
@@ -57,6 +57,11 @@ end
 -- レイヤーの可視状態を復元する
 function restore_layer(layer, visibles, index)
   layer.isVisible = visibles[index]
+end
+
+-- 指定されたレイヤーがマスクであるかチェックする
+local function is_masked_layer(layer)
+  return layer.isImage and starts_with(layer.name, MASKED_IMG_LAYER_NAME)
 end
 
 -- 指定されたレイヤーがマスクであるかチェックする
@@ -160,6 +165,18 @@ local function get_all_mask_layer(sprite)
   return mask_layer
 end
 
+-- マスク済みレイヤーリストを取得する
+local function get_masked_layers(sprite)
+  local masked_layers = {}
+  for i = #sprite.layers, 1, -1 do
+    local layer = sprite.layers[i]
+    if is_masked_layer(layer) then
+      masked_layers[layer.name] = layer
+    end
+  end
+  return masked_layers
+end
+
 -------------------------------------------
 -- mask process utils
 -------------------------------------------
@@ -254,21 +271,30 @@ local function get_default_masked_layer(sprite)
   end
 end
 
+-- すべてのフレームをコピーする
+function copy_dep_marged_image_all(sprite, msk_layer, msked_layer)
+  for j = 1,#sprite.frames do
+    copy_dep_marged_image(sprite, msk_layer, msked_layer, j)
+  end
+end
 -------------------------------------------
 -- main function
 -------------------------------------------
 function update_masked_image()
   local sprite = app.activeSprite
+  local masked_layers = get_masked_layers(sprite)
   local masked_layer = get_default_masked_layer(sprite)
   local visbles = visible_list(sprite)
 
   unvisible_all_layer(sprite)
   
   -- マスク結果をクリア
-  for j = 1,#sprite.frames do
-    local c = search_target_cel(sprite, masked_layer, j)
-    if c ~= nil then
-      c.image:clear()
+  for i = 1, #masked_layers do
+    for j = 1,#sprite.frames do
+      local c = search_target_cel(sprite, masked_layers[i], j)
+      if c ~= nil then
+        c.image:clear()
+      end
     end
   end
 
@@ -276,29 +302,25 @@ function update_masked_image()
   for i = 1,#sprite.layers do
     local layer = sprite.layers[i]
     if is_mask_layer(layer) then
-        local each_mask_layer = search_masked_layer(sprite, get_masked_layer_name(layer))
-        for j = 1,#sprite.frames do
-        if each_mask_layer ~= nil then
-          copy_dep_marged_image(sprite, layer, each_mask_layer, j)
-        else
-          copy_dep_marged_image(sprite, layer, masked_layer, j)
-        end
+      local each_mask_layer = masked_layers[get_masked_layer_name(layer)]
+      if each_mask_layer ~= nil then
+        copy_dep_marged_image_all(sprite, layer, each_mask_layer)
+      else
+        copy_dep_marged_image_all(sprite, layer, masked_layer)
       end
     end
     restore_layer(layer, visbles, i)
     if is_self_mask_layer(layer) then
-      local each_mask_layer = search_masked_layer(sprite, get_self_masked_layer_name(layer))
-      for j = 1,#sprite.frames do
-        if each_mask_layer ~= nil then
-          copy_dep_marged_image(sprite, layer, each_mask_layer, j)
-        else
-          copy_dep_marged_image(sprite, layer, masked_layer, j)
-        end
+      local each_mask_layer = masked_layers[get_self_masked_layer_name(layer)]
+      if each_mask_layer ~= nil then
+        copy_dep_marged_image_all(sprite, layer, each_mask_layer)
+      else
+        copy_dep_marged_image_all(sprite, layer, masked_layer)
       end
     end
     for j = 1,#sprite.frames do
       if is_self_mask_cel(layer, j) then
-        local each_mask_layer = search_masked_layer(sprite, get_masked_layer_name(layer))
+        local each_mask_layer = masked_layers[get_masked_layer_name(layer)]
         if each_mask_layer ~ nil then
           copy_dep_marged_image(sprite, layer, each_mask_layer, j)
         else
