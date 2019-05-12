@@ -133,7 +133,6 @@ local function get_masked_(name)
   if #MASKED_IMG_LAYER_NAME >= #name then
     return MASKED_IMG_LAYER_NAME
   end
-  app.alert(name:sub(#MASK_LAYER_NAME + 1, #name))
   return MASKED_IMG_LAYER_NAME .. name:sub(#MASK_LAYER_NAME + 1, #name)
 end
 
