@@ -280,8 +280,9 @@ function update_masked_image()
         for j = 1,#sprite.frames do
         if each_mask_layer ~= nil then
           copy_dep_marged_image(sprite, layer, each_mask_layer, j)
+        else
+          copy_dep_marged_image(sprite, layer, masked_layer, j)
         end
-        copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
     restore_layer(layer, visbles, i)
@@ -290,8 +291,9 @@ function update_masked_image()
       for j = 1,#sprite.frames do
         if each_mask_layer ~= nil then
           copy_dep_marged_image(sprite, layer, each_mask_layer, j)
+        else
+          copy_dep_marged_image(sprite, layer, masked_layer, j)
         end
-        copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
     for j = 1,#sprite.frames do
@@ -299,8 +301,9 @@ function update_masked_image()
         local each_mask_layer = search_masked_layer(sprite, get_masked_layer_name(layer))
         if each_mask_layer ~ nil then
           copy_dep_marged_image(sprite, layer, each_mask_layer, j)
+        else
+          copy_dep_marged_image(sprite, layer, masked_layer, j)
         end
-        copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
   end
