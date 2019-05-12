@@ -289,9 +289,12 @@ function update_masked_image()
   unvisible_all_layer(sprite)
   
   -- マスク結果をクリア
-  for i = 1, #masked_layers do
+  for key, layer in pairs(masked_layers) do
     for j = 1,#sprite.frames do
-      local c = search_target_cel(sprite, masked_layers[i], j)
+      local c = layer:cel(j)
+      if c == nil then
+        c = search_target_cel(sprite, layer, j)
+      end
       if c ~= nil then
         c.image:clear()
       end
