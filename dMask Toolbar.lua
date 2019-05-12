@@ -261,7 +261,7 @@ function update_masked_image()
       end
     end
     for j = 1,#sprite.frames do
-      if is_self_mask_cel(layer, frameNumber) then
+      if is_self_mask_cel(layer, j) then
         copy_dep_marged_image(sprite, layer, masked_layer, j)
       end
     end
