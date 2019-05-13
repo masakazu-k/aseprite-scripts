@@ -29,6 +29,9 @@ local function search_masked_layer(sprite, layer_name)
   return nil
 end
 
+-------------------------------------------
+-- visible utils
+-------------------------------------------
 -- 現在の表示状態を取得する
 function visible_list(sprite)
   local visbles = {}
@@ -60,11 +63,6 @@ function restore_layer(layer, visibles, index)
 end
 
 -- 指定されたレイヤーがマスクであるかチェックする
-local function is_masked_layer(layer)
-  return layer.isImage and starts_with(layer.name, MASKED_IMG_LAYER_NAME)
-end
-
--- 指定されたレイヤーがマスクであるかチェックする
 local function is_mask_layer(layer)
   return layer.isImage and starts_with(layer.name, MASK_LAYER_NAME)
 end
@@ -91,30 +89,6 @@ local function search_target_cel(sprite, msk_layer, frameNumber)
   return nil
 end
 
--- 指定されたマスクレイヤーのマスク対象エリアを取得する
-local function get_mask_area(sprite, msk_layer, frameNumber)
-  local points = {}
-  local c = msk_layer:cel(frameNumber)
-  local area = nil
-  if c == nil then
-    c = search_target_cel(sprite, msk_layer, frameNumber)
-  end
-  if c ~= nil then
-    for it in c.image:pixels() do
-      local pixelValue = it() -- get pixel
-      --app.alert("("..tostring(it.x)..","..tostring(it.y)..")A:"..tostring(app.pixelColor.rgbaA(it())))
-      if app.pixelColor.rgbaA(pixelValue) > 0 then
-        if area == nil then
-          area = Rectangle(it.x+c.position.x, it.y+c.position.y, 1, 1)
-        else
-          area = area:union(Rectangle(it.x+c.position.x, it.y+c.position.y, 1, 1))
-        end
-      end
-    end
-  end
-  return area
-end
-
 -- 指定されたマスクレイヤーのマスク対象エリアをPointで取得する
 local function get_mask_points(sprite, msk_layer, frameNumber)
   local points = {}
@@ -134,6 +108,15 @@ local function get_mask_points(sprite, msk_layer, frameNumber)
   return points
 end
 
+-------------------------------------------
+-- masked layer  util
+-------------------------------------------
+-- 指定されたレイヤーがマスクであるかチェックする
+local function is_masked_layer(layer)
+  return layer.isImage and starts_with(layer.name, MASKED_IMG_LAYER_NAME)
+end
+
+-- 
 local function get_masked_(name)
   if #MASKED_IMG_LAYER_NAME >= #name then
     return MASKED_IMG_LAYER_NAME
@@ -141,16 +124,16 @@ local function get_masked_(name)
   return MASKED_IMG_LAYER_NAME .. name:sub(#MASK_LAYER_NAME + 1, #name)
 end
 
--------------------------------------------
--- mask manage util
--------------------------------------------
 -- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
 local function get_masked_layer_name(msk_layer)
   return get_masked_(msk_layer.name)
 end
+
+-- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
 local function get_self_masked_layer_name(msk_layer)
   return get_masked_(msk_layer.data)
 end
+
 -- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
 local function get_cel_masked_layer_name(msk_layer, frameNumber)
   return get_masked_(msk_layer:cel(frameNumber).data)
@@ -205,6 +188,46 @@ local function get_masked_layers(sprite)
     end
   end
   return masked_layers
+end
+
+-- デフォルトのマスク済みレイヤーを取得する
+local function get_default_masked_layer(sprite)
+  if sprite.layers[#sprite.layers].name == MASKED_IMG_LAYER_NAME then
+    return sprite.layers[#sprite.layers]
+  end
+  local deflayer = search_masked_layer(sprite, MASKED_IMG_LAYER_NAME)
+  if deflayer ~= nil then
+    return deflayer
+  else
+    sprite:newLayer()
+    local firstLayer = sprite.layers[#sprite.layers]
+    firstLayer.name = MASKED_IMG_LAYER_NAME
+    return firstLayer
+  end
+end
+
+-- 指定されたマスクレイヤーのマスク対象エリアを取得する
+local function get_mask_area(sprite, msk_layer, frameNumber)
+  local points = {}
+  local c = msk_layer:cel(frameNumber)
+  local area = nil
+  if c == nil then
+    c = search_target_cel(sprite, msk_layer, frameNumber)
+  end
+  if c ~= nil then
+    for it in c.image:pixels() do
+      local pixelValue = it() -- get pixel
+      --app.alert("("..tostring(it.x)..","..tostring(it.y)..")A:"..tostring(app.pixelColor.rgbaA(it())))
+      if app.pixelColor.rgbaA(pixelValue) > 0 then
+        if area == nil then
+          area = Rectangle(it.x+c.position.x, it.y+c.position.y, 1, 1)
+        else
+          area = area:union(Rectangle(it.x+c.position.x, it.y+c.position.y, 1, 1))
+        end
+      end
+    end
+  end
+  return area
 end
 
 -------------------------------------------
@@ -284,21 +307,6 @@ local function copy_marged_image(sprite, msk_layer, msked_layer, frameNumber)
   msked_layer.isVisible = msked_layer_visible
   
   sprite.selection:deselect()
-end
-
-local function get_default_masked_layer(sprite)
-  if sprite.layers[#sprite.layers].name == MASKED_IMG_LAYER_NAME then
-    return sprite.layers[#sprite.layers]
-  end
-  local deflayer = search_masked_layer(sprite, MASKED_IMG_LAYER_NAME)
-  if deflayer ~= nil then
-    return deflayer
-  else
-    sprite:newLayer()
-    local firstLayer = sprite.layers[#sprite.layers]
-    firstLayer.name = MASKED_IMG_LAYER_NAME
-    return firstLayer
-  end
 end
 
 -- すべてのフレームをコピーする
