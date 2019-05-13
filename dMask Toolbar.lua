@@ -141,6 +141,9 @@ local function get_masked_(name)
   return MASKED_IMG_LAYER_NAME .. name:sub(#MASK_LAYER_NAME + 1, #name)
 end
 
+-------------------------------------------
+-- mask manage util
+-------------------------------------------
 -- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
 local function get_masked_layer_name(msk_layer)
   return get_masked_(msk_layer.name)
@@ -163,6 +166,33 @@ local function get_all_mask_layer(sprite)
     end
   end
   return mask_layer
+end
+
+-- 指定された色のマスク済みレイヤーを取得する
+function get_masked_layer_by_color(msked_layers, color)
+  for key, layer in pairs(msked_layers) do
+    if layer.color == color then
+      return layer
+    end
+  end
+  return nil
+end
+
+-- 指定された名前のマスク済みレイヤーを取得する
+function get_masked_layer_by_name(msked_layers, name)
+  return msked_layers[get_masked_layer_name(layer)]
+end
+
+-- 指定されたレイヤーとマスク済みレイヤーを紐づける（同じ色を設定する/dataに名前を付ける）
+function set_masked_layer_to_layer(msked_layers, layer)
+  layer.color = msked_layers.color
+  layer.data = msked_layers.name
+end
+
+-- 指定されたセルとマスク済みレイヤーを紐づける（同じ色を設定する/dataに名前を付ける）
+function set_masked_layer_to_cel(msked_layers, cel)
+  cel.color = msked_layers.color
+  cel.data = msked_layers.name
 end
 
 -- マスク済みレイヤーリストを取得する
@@ -323,7 +353,7 @@ function update_masked_image()
     end
     for j = 1,#sprite.frames do
       if is_self_mask_cel(layer, j) then
-        local each_mask_layer = masked_layers[get_masked_layer_name(layer)]
+        local each_mask_layer = masked_layers[get_cel_masked_layer_name(layer, j)]
         if each_mask_layer ~ nil then
           copy_dep_marged_image(sprite, layer, each_mask_layer, j)
         else
@@ -337,6 +367,65 @@ function update_masked_image()
   app.refresh()
 end
 
+function set_masked_layer(sprite, msked_layer)
+  if sprite.range.type == RangeType.EMPTY then
+    app.alert("NOT SELECTED LAYER OR CEL")
+    return
+  elseif sprite.range.type == RangeType.LAYERS then
+    for i = 1,#sprite.range.layers do
+      local layer = sprite.range.layers[i]
+      if is_masked_layer(layer) ~= true then
+        set_masked_layer_to_layer(msked_layer, layer)
+      end
+    end
+  elseif sprite.range.type == RangeType.FRAMES then
+    -- for i = 1,#sprite.range.frames do
+    --   local frame = sprite.range.frames[i]
+    -- end
+    app.alert("NOT SELECTED LAYER OR CEL")
+    return
+  elseif sprite.range.type == RangeType.CELS then
+    for i = 1,#sprite.range.cels do
+      local cel = sprite.range.cels[i]
+      set_masked_layer_to_cel(msked_layer, cel)
+    end
+  end
+end
+
+function auto_update_masked_layers()
+  local sprite = app.activeSprite
+  local masked_layers = get_masked_layers(sprite)
+
+  for i = 1,#sprite.layers do
+    local layer = sprite.layers[i]
+    app.alert(" "..layer.name)
+    if is_mask_layer(layer) then
+      app.alert("this is l")
+      local each_mask_layer = masked_layers[get_masked_layer_name(layer)]
+      if each_mask_layer ~= nil then
+        set_masked_layer_to_layer(each_mask_layer, layer)
+      end
+    end
+    if is_self_mask_layer(layer) then
+      app.alert("this is s")
+      local each_mask_layer = masked_layers[get_self_masked_layer_name(layer)]
+      if each_mask_layer ~= nil then
+        set_masked_layer_to_layer(each_mask_layer, layer)
+      end
+    end
+    for j = 1,#sprite.frames do
+      if is_self_mask_cel(layer, j) then
+        app.alert("this is c")
+        local each_mask_layer = masked_layers[get_cel_masked_layer_name(layer, j)]
+        if each_mask_layer ~ nil then
+          set_masked_layer_to_cel(msked_layer, cel)
+        end
+      end
+    end
+  end
+
+  app.refresh()
+end
 -------------------------------------------
 --
 -- create masked image data
@@ -355,8 +444,17 @@ function update()
   )
 end
 
+function refresh()
+  app.transaction(
+    function()
+      auto_update_masked_layers()
+    end
+  )
+end
+
 local dlg = Dialog("dMask Toolbar")
 dlg
   :button{text="Update", onclick=update}
+  :button{text="Refresh", onclick=refresh}
   -- :combobox{ id="mode", label="Mask Mode", option="Multiple", options={ "Single", "Multiple" } }
   :show{wait=false}
