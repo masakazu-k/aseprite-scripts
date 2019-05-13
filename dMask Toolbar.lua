@@ -229,7 +229,6 @@ local function get_mask_area(sprite, msk_layer, frameNumber)
   if c ~= nil then
     for it in c.image:pixels() do
       local pixelValue = it() -- get pixel
-      --app.alert("("..tostring(it.x)..","..tostring(it.y)..")A:"..tostring(app.pixelColor.rgbaA(it())))
       if app.pixelColor.rgbaA(pixelValue) > 0 then
         if area == nil then
           area = Rectangle(it.x+c.position.x, it.y+c.position.y, 1, 1)
@@ -394,7 +393,6 @@ function auto_update_masked_layers()
 
   for i = 1,#sprite.layers do
     local layer = sprite.layers[i]
-    app.alert(" "..layer.name)
     if is_mask_layer(layer) then
       local each_mask_layer = masked_layers[get_masked_layer_name(layer)]
       if each_mask_layer ~= nil then
