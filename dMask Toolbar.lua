@@ -69,13 +69,13 @@ end
 
 -- 指定されたレイヤーがセルフマスクであるかチェックする
 local function is_self_mask_layer(layer)
-  return layer.isImage and starts_with(layer.data, MASK_LAYER_NAME)
+  return layer.isImage and starts_with(layer.data, MASKED_IMG_LAYER_NAME)
 end
 
 -- 指定されたレイヤーがセルフマスクであるかチェックする
 local function is_self_mask_cel(layer, frameNumber)
   local c = layer:cel(frameNumber)
-  return c ~= nil and starts_with(c.data, MASK_LAYER_NAME)
+  return c ~= nil and starts_with(c.data, MASKED_IMG_LAYER_NAME)
 end
 
 -- bug対策：レイヤーからセルを取得できないため、スプライトのセル一覧から取得する
@@ -131,12 +131,12 @@ end
 
 -- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
 local function get_self_masked_layer_name(msk_layer)
-  return get_masked_(msk_layer.data)
+  return msk_layer.data
 end
 
 -- 指定されたマスクレイヤーに対応する、マスク済みレイヤー名を取得する
 local function get_cel_masked_layer_name(msk_layer, frameNumber)
-  return get_masked_(msk_layer:cel(frameNumber).data)
+  return msk_layer:cel(frameNumber).data
 end
 
 -- 全マスクレイヤーを取得する
