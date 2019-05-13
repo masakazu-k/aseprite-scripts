@@ -373,7 +373,7 @@ function update_masked_image()
     for j = 1,#sprite.frames do
       if is_self_mask_cel(layer, j) then
         local each_mask_layer = masked_layers[get_cel_masked_layer_name(layer, j)]
-        if each_mask_layer ~ nil then
+        if each_mask_layer ~= nil then
           copy_dep_marged_image(sprite, layer, each_mask_layer, j)
         else
           copy_dep_marged_image(sprite, layer, masked_layer, j)
