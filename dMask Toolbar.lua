@@ -172,10 +172,22 @@ function set_masked_layer_to_layer(msked_layers, layer)
   layer.data = msked_layers.name
 end
 
+-- 指定されたレイヤーのマスク済みレイヤーを解除する
+function unset_masked_layer_to_layer(layer)
+  layer.color = Color()
+  layer.data = ""
+end
+
 -- 指定されたセルとマスク済みレイヤーを紐づける（同じ色を設定する/dataに名前を付ける）
 function set_masked_layer_to_cel(msked_layers, cel)
   cel.color = msked_layers.color
   cel.data = msked_layers.name
+end
+
+-- 指定されたセルとマスク済みレイヤーを紐づける（同じ色を設定する/dataに名前を付ける）
+function unset_masked_layer_to_cel(cel)
+  cel.color = Color()
+  cel.data = ""
 end
 
 -- マスク済みレイヤーリストを取得する
@@ -375,58 +387,37 @@ function update_masked_image()
   app.refresh()
 end
 
-function set_masked_layer(sprite, msked_layer)
-  if sprite.range.type == RangeType.EMPTY then
-    app.alert("NOT SELECTED LAYER OR CEL")
-    return
-  elseif sprite.range.type == RangeType.LAYERS then
-    for i = 1,#sprite.range.layers do
-      local layer = sprite.range.layers[i]
-      if is_masked_layer(layer) ~= true then
-        set_masked_layer_to_layer(msked_layer, layer)
-      end
-    end
-  elseif sprite.range.type == RangeType.FRAMES then
-    -- for i = 1,#sprite.range.frames do
-    --   local frame = sprite.range.frames[i]
-    -- end
-    app.alert("NOT SELECTED LAYER OR CEL")
-    return
-  elseif sprite.range.type == RangeType.CELS then
-    for i = 1,#sprite.range.cels do
-      local cel = sprite.range.cels[i]
-      set_masked_layer_to_cel(msked_layer, cel)
-    end
-  end
-end
-
 function auto_update_masked_layers()
   local sprite = app.activeSprite
+  local default_masked_layer = get_default_masked_layer(sprite)
   local masked_layers = get_masked_layers(sprite)
 
   for i = 1,#sprite.layers do
     local layer = sprite.layers[i]
     app.alert(" "..layer.name)
     if is_mask_layer(layer) then
-      app.alert("this is l")
       local each_mask_layer = masked_layers[get_masked_layer_name(layer)]
       if each_mask_layer ~= nil then
         set_masked_layer_to_layer(each_mask_layer, layer)
+      else
+        set_masked_layer_to_layer(default_masked_layer, layer)
       end
     end
     if is_self_mask_layer(layer) then
-      app.alert("this is s")
       local each_mask_layer = masked_layers[get_self_masked_layer_name(layer)]
       if each_mask_layer ~= nil then
         set_masked_layer_to_layer(each_mask_layer, layer)
+      else
+        set_masked_layer_to_layer(default_masked_layer, layer)
       end
     end
     for j = 1,#sprite.frames do
       if is_self_mask_cel(layer, j) then
-        app.alert("this is c")
         local each_mask_layer = masked_layers[get_cel_masked_layer_name(layer, j)]
         if each_mask_layer ~ nil then
           set_masked_layer_to_cel(msked_layer, cel)
+        else
+          set_masked_layer_to_cel(default_masked_layer, layer)
         end
       end
     end
@@ -434,6 +425,95 @@ function auto_update_masked_layers()
 
   app.refresh()
 end
+
+function set_masked_layer()
+  local sprite = app.activeSprite
+  if app.range.type == RangeType.EMPTY then
+    app.alert("NOT SELECTED LAYER OR CEL")
+    return
+  elseif app.range.type == RangeType.FRAMES then
+    app.alert("NOT SELECTED LAYER OR CEL")
+    return
+  end
+
+  local default_masked_layer = get_default_masked_layer(sprite)
+  local masked_layers = get_masked_layers(sprite)
+
+  local options = {}
+
+  for key, value in pairs(masked_layers) do 
+    options[#options + 1] = key
+  end
+
+  local dlg = Dialog("Select Masked Layer")
+  local data = dlg
+    :combobox{ id="selected_masked_layer", label="Masked Layer", option=options[1], options=options }
+    :newrow()
+    :button{ id="ok", text="OK" }
+    :button{ id="cancel", text="Cancel" }
+    :show().data
+  if data.cancel then
+    return
+  end
+
+  local msked_layer = masked_layers[data.selected_masked_layer]
+
+  if msked_layer == nil then
+    return
+  end
+
+  if app.range.type == RangeType.LAYERS then
+    for i = 1,#app.range.layers do
+      local layer = app.range.layers[i]
+      if is_masked_layer(layer) ~= true then
+        set_masked_layer_to_layer(msked_layer, layer)
+      end
+    end
+  elseif app.range.type == RangeType.CELS then
+    for i = 1,#app.range.cels do
+      local cel = app.range.cels[i]
+      set_masked_layer_to_cel(msked_layer, cel)
+    end
+  end
+  app.refresh()
+end
+
+function unset_masked_layer()
+  local sprite = app.activeSprite
+  if app.range.type == RangeType.EMPTY then
+    app.alert("NOT SELECTED LAYER OR CEL")
+    return
+  end
+
+  if app.range.type == RangeType.LAYERS then
+    for i = 1,#app.range.layers do
+      local layer = app.range.layers[i]
+      if is_masked_layer(layer) ~= true then
+        unset_masked_layer_to_layer(layer)
+      end
+    end
+  elseif app.range.type == RangeType.CELS then
+    for i = 1,#app.range.cels do
+      local cel = app.range.cels[i]
+      unset_masked_layer_to_cel(cel)
+    end
+  elseif app.range.type == RangeType.FRAMES then
+    for i = 1,#app.range.frames do
+      local frame = app.range.frames[i]
+      for j = 1,#sprite.layers do
+        local cel = sprite.layers[j]:cel(frame.frameNumber)
+        if cel ~= nil then
+          unset_masked_layer_to_cel(cel)
+        end
+      end
+    end
+  end
+  app.refresh()
+end
+
+
+
+
 -------------------------------------------
 --
 -- create masked image data
@@ -460,9 +540,30 @@ function refresh()
   )
 end
 
+function setmask()
+  app.transaction(
+    function()
+      set_masked_layer()
+    end
+  )
+end
+
+function unsetmask()
+  app.transaction(
+    function()
+      unset_masked_layer()
+    end
+  )
+end
+
 local dlg = Dialog("dMask Toolbar")
 dlg
-  :button{text="Update", onclick=update}
-  :button{text="Refresh", onclick=refresh}
+  :button{text="Update Masked Layer", onclick=update}
+  :newrow()
+  :button{text="Refresh Group Color", onclick=refresh}
+  :newrow()
+  :separator()
+  :button{text="Set Mask", onclick=setmask}
+  :button{text="Unset Mask", onclick=unsetmask}
   -- :combobox{ id="mode", label="Mask Mode", option="Multiple", options={ "Single", "Multiple" } }
   :show{wait=false}
