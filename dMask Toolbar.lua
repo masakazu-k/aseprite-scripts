@@ -165,10 +165,24 @@ MaskCel.New = function(cel, export_layer)
   return MaskCel.Class(cel)
 end
 
+-- Mask Layerを解除する
+MaskCel.UnSetCel = function(cel)
+  cel.data = ""
+  cel.color = Color()
+  return nil
+end
+
 -- Mask Layerを作成する
 MaskCel.SetLayer = function(layer, export_layer)
   layer.data = export_layer.layer.name
   layer.color = export_layer.layer.color
+  return nil
+end
+
+-- Mask Layerを解除する
+MaskCel.UnSetLayer = function(layer)
+  layer.data = ""
+  layer.color = Color()
   return nil
 end
 
@@ -421,6 +435,48 @@ MaskManager.Class = function(sprite)
       end
     end
   end
+
+  self.Unset = function(self)
+    if app.range.type == RangeType.EMPTY then
+      app.alert("NOT SELECTED LAYER OR CEL")
+      return
+    end
+  
+    if app.range.type == RangeType.LAYERS then
+      for i = 1,#app.range.layers do
+        local layer = app.range.layers[i]
+        if MaskCel.IsLayer(layer) then
+          MaskCel.UnSetLayer(layer)
+        end
+      end
+    elseif app.range.type == RangeType.CELS then
+      for i = 1,#app.range.cels do
+        local cel = app.range.cels[i]
+        if MaskCel.IsCel(cel.layer, cel.frameNumber) then
+          MaskCel.UnSetLayer(cel)
+        end
+      end
+    end
+  end
+
+  self.UpdateColor = function(self)
+    for i = 1,#self.sprite.layers do
+      local layer = self.sprite.layers[i]
+      if MaskCel.IsLayer(layer) then
+        if self.export_layers[layer.data] ~= nil then
+          layer.color = self.export_layers[layer.data].layer.color
+        end
+      end
+      for j = 1,#self.sprite.frames do
+        local cel = layer:cel(j)
+        if cel ~= nil and MaskCel.IsCel(cel.layer, cel.frameNumber) then
+          if self.export_layers[cel.data] ~= nil then
+            cel.color = self.export_layers[cel.data].layer.color
+          end
+        end
+      end
+    end
+  end
   return self
 end
 
@@ -451,7 +507,7 @@ end
 -------------------------------------------
 -- main function
 -------------------------------------------
-function update_export_image()
+function update_export_all()
   local sprite = app.activeSprite
   local mm = MaskManager.Class(sprite)
 
@@ -461,40 +517,23 @@ function update_export_image()
   app.refresh()
 end
 
-function auto_update_export_layers()
+function update_export_frame()
   local sprite = app.activeSprite
-  local default_export_layer = get_default_export_layer(sprite)
-  local export_layers = get_export_layers(sprite)
+  local frame = app.activeFrame
+  local mm = MaskManager.Class(sprite)
 
-  for i = 1,#sprite.layers do
-    local layer = sprite.layers[i]
-    if is_mask_layer(layer) then
-      local each_mask_layer = export_layers[get_export_layer_name(layer)]
-      if each_mask_layer ~= nil then
-        set_export_layer_to_layer(each_mask_layer, layer)
-      else
-        set_export_layer_to_layer(default_export_layer, layer)
-      end
-    end
-    if is_self_mask_layer(layer) then
-      local each_mask_layer = export_layers[get_self_export_layer_name(layer)]
-      if each_mask_layer ~= nil then
-        set_export_layer_to_layer(each_mask_layer, layer)
-      else
-        set_export_layer_to_layer(default_export_layer, layer)
-      end
-    end
-    for j = 1,#sprite.frames do
-      if is_self_mask_cel(layer, j) then
-        local each_mask_layer = export_layers[get_cel_export_layer_name(layer, j)]
-        if each_mask_layer ~ nil then
-          set_export_layer_to_cel(export_layer, cel)
-        else
-          set_export_layer_to_cel(default_export_layer, layer)
-        end
-      end
-    end
-  end
+  -- マスク対象エリアをマスク
+  mm:Update(frame.frameNumber)
+
+  app.refresh()
+end
+
+function auto_sync_color()
+  local sprite = app.activeSprite
+  local mm = MaskManager.Class(sprite)
+
+  -- マスク対象エリアをマスク
+  mm:UpdateColor()
 
   app.refresh()
 end
@@ -519,34 +558,8 @@ end
 
 function unset_export_layer()
   local sprite = app.activeSprite
-  if app.range.type == RangeType.EMPTY then
-    app.alert("NOT SELECTED LAYER OR CEL")
-    return
-  end
-
-  if app.range.type == RangeType.LAYERS then
-    for i = 1,#app.range.layers do
-      local layer = app.range.layers[i]
-      if is_export_layer(layer) ~= true then
-        unset_export_layer_to_layer(layer)
-      end
-    end
-  elseif app.range.type == RangeType.CELS then
-    for i = 1,#app.range.cels do
-      local cel = app.range.cels[i]
-      unset_export_layer_to_cel(cel)
-    end
-  elseif app.range.type == RangeType.FRAMES then
-    for i = 1,#app.range.frames do
-      local frame = app.range.frames[i]
-      for j = 1,#sprite.layers do
-        local cel = sprite.layers[j]:cel(frame.frameNumber)
-        if cel ~= nil then
-          unset_export_layer_to_cel(cel)
-        end
-      end
-    end
-  end
+  local mm = MaskManager.Class(sprite)
+  mm:Unset()
   app.refresh()
 end
 
@@ -559,22 +572,34 @@ end
 --
 -------------------------------------------
 
-function update()
+function update_all()
   app.transaction(
     function()
       local l = app.activeLayer
       local f = app.activeFrame 
-      update_export_image()
+      update_export_all()
       app.activeLayer = l
       app.activeFrame = f
     end
   )
 end
 
-function refresh()
+function update_frame()
   app.transaction(
     function()
-      auto_update_export_layers()
+      local l = app.activeLayer
+      local f = app.activeFrame 
+      update_export_frame()
+      app.activeLayer = l
+      app.activeFrame = f
+    end
+  )
+end
+
+function synccolor()
+  app.transaction(
+    function()
+      auto_sync_color()
     end
   )
 end
@@ -603,17 +628,26 @@ function editexport()
   )
 end
 
+function createmask()
+  app.alert("NO IMPLEMNT")
+end
+
 local dlg = Dialog("dMask Toolbar")
 dlg
-  :button{text="Update Masked Layer", onclick=update}
+  :label{text="Refresh"}
+  :button{text="Active Frame", onclick=update_frame}
+  :button{text="All", onclick=update_all}
   :newrow()
-  :button{text="Refresh Group Color", onclick=refresh}
+  :button{text="Sync Color", onclick=synccolor}
   :newrow()
   :separator()
+  :label{text="Mask Layer"}
   :button{text="Set Mask", onclick=setmask}
   :button{text="Unset Mask", onclick=unsetmask}
   :newrow()
+  :button{text="Create New Mask", onclick=createmask}
+  :newrow()
   :separator()
-  :button{text="Edit Export", onclick=editexport}
-  -- :combobox{ id="mode", label="Mask Mode", option="Multiple", options={ "Single", "Multiple" } }
+  :label{text="Export Layer"}
+  :button{text="Setting", onclick=editexport}
   :show{wait=false}
