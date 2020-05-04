@@ -25,7 +25,7 @@ jobs:
     - name: Zip Release
       uses: TheDoctor0/zip-release@v0.3.0
       with:
-        filename: ./output/realease.zip
+        filename: release.zip
         exclusions: '*.git*'
 
     - name: Create release
@@ -46,6 +46,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./output/release.zip
+        asset_path: release.zip
         asset_name: extension.zip
         asset_content_type: application/zip
