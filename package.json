@@ -1,0 +1,21 @@
+{
+    "name": "my-lua-extensions",
+    "displayName": "my-lua-extensions",
+    "description": "My Lua Script Extension",
+    "version": "1.0",
+    "author": {
+        "name": "masakazu-k",
+        "url": "https://github.com/masakazu-k"
+    },
+    "publisher": "-",
+    "categories": [
+        "Scripts"
+    ],
+    "contributes": {
+        "scripts": [
+            {
+                "path": "./scripts/entry.lua"
+            }
+        ]
+    }
+}
