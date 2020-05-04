@@ -25,5 +25,27 @@ jobs:
     - name: Zip Release
       uses: TheDoctor0/zip-release@v0.3.0
       with:
-        # Filename for archive
-        filename: my-extension.zip
+        filename: ./output/realease.zip
+        exclusions: '*.git*'
+
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1.0.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./output/release.zip
+        asset_name: extension.zip
+        asset_content_type: application/zip
