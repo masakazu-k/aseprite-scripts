@@ -139,7 +139,7 @@ local function GetAllMaskTargetList(layers, frameNumber, exclude_layers)
     return target_layers
     
 end
-  local function SwitchVisible(layer, excludes, layers)
+local function SwitchVisible(layer, excludes, layers)
     if layer.isImage and layer.isVisible and search(excludes, layer) then
           layers[#layers+1] = layer
           layer.isVisible = false
@@ -150,15 +150,15 @@ end
           end
       end
       return layers
-  end
+end
   
-  local function SwitchVisibleAll(sprite, excludes)
+local function SwitchVisibleAll(sprite, excludes)
       local layers = {}
       for i,l in ipairs(sprite.layers) do
           SwitchVisible(l, excludes, layers)
       end
       return layers
-  end
+end
 -------------------------------------------------------------------------------
 -- 共通ここまで
 -------------------------------------------------------------------------------

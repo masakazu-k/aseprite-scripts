@@ -12,3 +12,12 @@ function split(str, ts)
 
     return t
 end
+
+function contains(arry, item)
+    for i in pairs(arry) do
+        if item == i then
+            return true
+        end
+    end
+    return false
+end
