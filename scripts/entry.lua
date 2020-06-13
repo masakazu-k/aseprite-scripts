@@ -1,20 +1,20 @@
 dofile("./common.lua")
-dofile("./auto-marge.lua")
+dofile("./auto-merge.lua")
 dofile("./loop-extending.lua")
 dofile("./merge-down-only-selected.lua")
 
 function init(plugin)
     plugin:newCommand{
-      id="toAutoMarge",
-      title="Auto Marge",
+      id="toAutoMerge",
+      title="Auto Merge",
       group="cel_popup_new",
-      onclick=AutoMarge
+      onclick=AutoMerge
     }
     
     plugin:newCommand{
       id="toLoopExtending",
       title="Loop Extending",
-      group="cel_popup_new",
+      group="sprite_crop",
       onclick=LoopExtending
     }
 

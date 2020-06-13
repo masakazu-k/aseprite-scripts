@@ -236,7 +236,7 @@ local function  doExecute(layer, frameNumber)
         return
     end
 
-    if command == "marge" then
+    if command == "merge" then
         if app.activeSprite.selection ~= nil then
             app.activeSprite.selection:deselect()
         end
@@ -309,7 +309,7 @@ local function add_layer(layer, layers)
     layers[#layers+1] = layer
 end
 
-function AutoMarge()
+function AutoMerge()
     local paste = false
     local frameNumbers = {}
     local layers = {}
