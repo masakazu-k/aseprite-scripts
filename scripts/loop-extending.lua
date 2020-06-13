@@ -64,14 +64,15 @@ local function amplification_by_count(tag_info, sprite)
 end
 
 function LoopExtending()
+    local sprite = app.activeSprite
+
+    if sprite == nil then 
+        app.alert("スプライトを開いて")
+        return
+    end
     
     app.transaction(
     function()
-        local sprite = app.activeSprite
-
-        if sprite == nil then 
-            app.alert("スプライトを開いて")
-        end
 
         sprite = Sprite(sprite)
         app.activeSprite = sprite
