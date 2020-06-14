@@ -13,11 +13,26 @@ function split(str, ts)
     return t
 end
 
-function contains(arry, item)
-    for i in pairs(arry) do
-        if item == i then
-            return true
+--- レイヤーを検索する
+function search_layer(layers, name, found_layers)
+    for i, layer in ipairs(layers) do
+        if layer.name == name then
+            found_layers[#found_layers+1] = layer
+        end
+        if layer.isGroup then
+            search_layer(layer.layers, name, found_layers)
         end
     end
-    return false
+end
+
+function contains(array, item)
+    if array == nil then
+        return true
+    end
+    for i,_item in ipairs(array) do
+        if _item == item then
+            return false
+        end
+    end
+    return true
 end

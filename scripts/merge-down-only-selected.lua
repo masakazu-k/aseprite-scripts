@@ -1,60 +1,6 @@
 -------------------------------------------------------------------------------
 -- 共通ここから
 -------------------------------------------------------------------------------
-function split(str, ts)
-    -- 引数がないときは空tableを返す
-    if ts == nil then return {} end
-
-    local t = {}
-    i=1
-    for s in string.gmatch(str, "([^"..ts.."]+)") do
-        t[i] = s
-        i = i + 1
-    end
-
-    return t
-end
-
-
---- レイヤーを検索する
-local function search_layer(layers, name, target_layers)
-    for i, layer in ipairs(layers) do
-        if layer.name == name then
-            target_layers[#target_layers+1] = layer
-        end
-        if layer.isGroup then
-            search_layer(layer.layers, name, target_layers)
-        end
-    end
-end
-
-  local function  search(array, item)
-    if array == nil then
-        return true
-    end
-    for i,_item in ipairs(array) do
-        if _item == item then
-            return false
-        end
-    end
-    return true
-end
-  
--- local function MaskByColorOnCel(layer, frameNumber)
---     local oldLayer = app.activeLayer
---     local oldFrame = app.activeFrame
---     local oldSelection = Selection(layer.sprite.selection)
-
---     -- マスク対象エリアを選択
---     app.activeLayer = layer
---     app.activeFrame = layer.sprite.frames[frameNumber]
---     app.command.MaskContent()
---     layer.sprite.selection:add(oldSelection)
-
---     app.activeLayer = oldLayer
---     app.activeFrame = oldFrame
--- end
-
 local function MaskByColorOnCel(cel)
     local points = {}
     if cel ~= nil then
@@ -80,7 +26,7 @@ end
 
 local function MaskByColorOnLayer(layer, frameNumber, selected_layers, exclude_layers)
     -- app.alert(layer.name)
-    if layer.isImage and search(exclude_layers, layer) then
+    if layer.isImage and contains(exclude_layers, layer) then
         -- MaskByColorOnCel(layer, frameNumber)
         MaskByColorOnCel(layer:cel(frameNumber))
         selected_layers[#selected_layers+1] = layer
@@ -117,7 +63,7 @@ local function MaskByColorOnLayers(layers, frameNumber, exclude_layers)
 end
 
 local function GetMaskTargetList(layer, frameNumber, target_layers, exclude_layers)
-    if layer.isImage and search(exclude_layers, layer) then
+    if layer.isImage and contains(exclude_layers, layer) then
         target_layers[#target_layers+1] = layer
     elseif layer.isGroup then
         -- グループ配下の全レイヤーを処理
@@ -139,7 +85,7 @@ local function GetAllMaskTargetList(layers, frameNumber, exclude_layers)
     
 end
 local function SwitchVisible(layer, excludes, layers)
-    if layer.isImage and layer.isVisible and search(excludes, layer) then
+    if layer.isImage and layer.isVisible and contains(excludes, layer) then
           layers[#layers+1] = layer
           layer.isVisible = false
         elseif layer.isGroup then
