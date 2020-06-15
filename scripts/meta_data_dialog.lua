@@ -63,7 +63,7 @@ local function EditDialogShow(metadata, save, position)
     end
             
     dlg:combobox{ id="command", label="type", option=metadata["command"],
-        options={ "mask", "imask", "merge", "outline", "imask"},
+        options={ "mask", "imask", "merge", "outline"},
         onchange=
         function()
             metadata.command = dlg.data.command
