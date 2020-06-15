@@ -28,7 +28,7 @@ end
 
 local function MaskByColorOnLayer(layer, frameNumber, selected_layers, exclude_layers)
     -- app.alert(layer.name)
-    if layer.isImage and contains(exclude_layers, layer) then
+    if layer.isImage and not contains(exclude_layers, layer) then
         -- MaskByColorOnCel(layer, frameNumber)
         MaskByColorOnCel(layer:cel(frameNumber))
         selected_layers[#selected_layers+1] = layer
@@ -65,7 +65,7 @@ local function MaskByColorOnLayers(layers, frameNumber, exclude_layers)
 end
 
 local function GetMaskTargetList(layer, frameNumber, target_layers, exclude_layers)
-    if layer.isImage and contains(exclude_layers, layer) then
+    if layer.isImage and not contains(exclude_layers, layer) then
         target_layers[#target_layers+1] = layer
     elseif layer.isGroup then
         -- グループ配下の全レイヤーを処理
@@ -87,16 +87,16 @@ local function GetAllMaskTargetList(layers, frameNumber, exclude_layers)
     
 end
 local function SwitchVisible(layer, excludes, layers)
-    if layer.isImage and layer.isVisible and contains(excludes, layer) then
+    if layer.isImage and layer.isVisible and not contains(excludes, layer) then
           layers[#layers+1] = layer
           layer.isVisible = false
-        elseif layer.isGroup then
-          -- グループ配下の全レイヤーを処理
-          for i,l in ipairs(layer.layers) do
-              SwitchVisible(l, excludes, layers)
-          end
-      end
-      return layers
+    elseif layer.isGroup then
+        -- グループ配下の全レイヤーを処理
+        for i,l in ipairs(layer.layers) do
+            SwitchVisible(l, excludes, layers)
+        end
+    end
+    return layers
 end
   
 local function SwitchVisibleAll(sprite, excludes)
@@ -111,65 +111,6 @@ end
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
--- データ取得系ここから
--------------------------------------------------------------------------------
-local function get_target_data(layer, strdata)
-    local exclude_names = {}
-    local layer_names = {}
-    -- マスク対象等のレイヤを調べる
-    local layer_types = split(strdata, ":")
-    if #layer_types == 2 then
-        layer_names = split(layer_types[1], ",")
-        exclude_names = split(layer_types[2], ",")
-    else
-        layer_names = split(strdata, ",")
-    end
-    local target_layers = {}
-    for i, name in pairs(layer_names) do
-        search_layer(layer.sprite.layers, name, target_layers)
-    end
-    local exclude_layers = {}
-    for i, name in pairs(exclude_names) do
-        search_layer(layer.sprite.layers, name, exclude_layers)
-    end
-    return target_layers, exclude_layers
-end
-
-local function get_export_data(layer, strdata)
-    -- マスク対象等のレイヤを調べる
-    local layer_types = split(strdata, ":")
-    if #layer_types == 2 then
-        local export_layers = {}
-        local command = layer_types[1]
-        local export_names = split(layer_types[2], ",")
-        for i, name in pairs(export_names) do
-            search_layer(layer.sprite.layers, name, export_layers)
-        end
-
-        if #export_layers > 0 then
-            return command, export_layers[1]
-        else
-            return command, layer
-        end
-    else
-        return strdata, layer
-    end
-end
-
-local function get_meta_data(layer)
-    local sp_layer_name = split(layer.name, "=")
-    if #sp_layer_name == 2 then
-        local command, export_layer = get_export_data(layer, sp_layer_name[1])
-        local target_layers , exclude_layers = get_target_data(layer, sp_layer_name[2])
-        return command, target_layers, exclude_layers, export_layer
-    end
-    return nil, nil, nil
-end
--------------------------------------------------------------------------------
--- データ取得系ここまで
--------------------------------------------------------------------------------
-
--------------------------------------------------------------------------------
 --
 -- メイン処理
 --
@@ -177,7 +118,7 @@ end
 
 local function  doExecute(layer, frameNumber)
 
-    local command, target_layers, exclude_layers, export_layer = get_meta_data(layer)
+    local command, target_layers, exclude_layers, export_layer = RestoreLayerMetaData(layer)
     
     if command == nil then
         return
@@ -237,6 +178,7 @@ local function  doExecute(layer, frameNumber)
         app.activeLayer = export_layer
         app.command.ClearCel()
     
+        app.alert("test")
         for i,l in ipairs(unvisile_layers) do
             l.isVisible = true
         end
