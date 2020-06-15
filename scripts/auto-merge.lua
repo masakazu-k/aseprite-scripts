@@ -132,6 +132,13 @@ local function  doExecute(layer, frameNumber)
         local selected_layers = MaskByColorOnLayers(target_layers, frameNumber, exclude_layers)
         local unvisile_layers = SwitchVisibleAll(layer.sprite, selected_layers)
 
+        if app.activeSprite.selection.isEmpty then
+            for i,l in ipairs(unvisile_layers) do
+                l.isVisible = true
+            end
+            return false
+        end
+
         app.activeFrame = export_layer.sprite.frames[frameNumber]
         app.activeLayer = export_layer
         app.command.ClearCel()
@@ -160,7 +167,7 @@ local function  doExecute(layer, frameNumber)
         return false
     end
 
-    if command == "mask" then
+    if command == "mask" or command == "imask" then
         if app.activeSprite.selection ~= nil then
             app.activeSprite.selection:deselect()
         end
@@ -172,13 +179,21 @@ local function  doExecute(layer, frameNumber)
         MaskByColorOnLayer(layer, frameNumber, {}, exclude_layers)
         local selected_layers = GetAllMaskTargetList(target_layers, frameNumber, exclude_layers)
         local unvisile_layers = SwitchVisibleAll(layer.sprite, selected_layers)
-        
+        if command == "imask" then
+            app.command.InvertMask()
+        end
+        if app.activeSprite.selection.isEmpty then
+            for i,l in ipairs(unvisile_layers) do
+                l.isVisible = true
+            end
+            return false
+        end
+
         app.command.CopyMerged()
         app.activeFrame = export_layer.sprite.frames[frameNumber]
         app.activeLayer = export_layer
         app.command.ClearCel()
     
-        app.alert("test")
         for i,l in ipairs(unvisile_layers) do
             l.isVisible = true
         end
@@ -213,21 +228,21 @@ function AutoMerge()
         add_layer(l, layers)
     end
     
-    for i,frameNumber in ipairs(frameNumbers) do
-        for i,l in ipairs(layers) do
-            app.transaction(
-                function()
-                    paste = doExecute(l, frameNumber)
-            end)
-            if paste then
-                app.transaction(
-                    function()
-                        app.command.Paste()
-                        app.command.DeselectMask()
-                end)
+    app.transaction(
+        function()
+        for i,frameNumber in ipairs(frameNumbers) do
+            for i,l in ipairs(layers) do
+                paste = doExecute(l, frameNumber)
+                if paste then
+                    local isVisible = app.activeLayer.isVisible
+                    app.activeLayer.isVisible = true
+                    app.command.Paste()
+                    app.command.DeselectMask()
+                    app.activeLayer.isVisible = isVisible
+                end
             end
         end
-    end
+    end)
     app.activeFrame = oldActiveFrame
     app.activeLayer = oldActiveLayer
     app.refresh()

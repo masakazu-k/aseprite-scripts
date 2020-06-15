@@ -57,6 +57,23 @@ function contains(array, item)
     return false
 end
 
+--- 配列内の要素を削除した上で詰め替える
+function remove(array, index)
+    if index > #array then
+        return
+    end
+    local idx = 1
+    for i,_item in ipairs(array) do
+        if i~=idx then
+            array[idx] = _item
+        end
+        if i~=index then
+            idx = idx+1
+        end
+    end
+    array[#array] = nil
+end
+
 --- 配列を指定した文字で結合する
 function join(array, split)
     if array == nil or #array == 0 then

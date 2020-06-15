@@ -1,8 +1,8 @@
 {
-    "name": "my-lua-extensions",
-    "displayName": "my-lua-extensions",
-    "description": "My Lua Script Extension",
-    "version": "1.0",
+    "name": "mask-like-scripts",
+    "displayName": "mask-like-scripts",
+    "description": "Mask Like Scripts",
+    "version": "0.1",
     "author": {
         "name": "masakazu-k",
         "url": "https://github.com/masakazu-k"
