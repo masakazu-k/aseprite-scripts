@@ -118,7 +118,7 @@ end
 
 local function  doExecute(layer, frameNumber)
 
-    local command, target_layers, exclude_layers, export_layer = RestoreLayerMetaData(layer)
+    local command, target_layers, exclude_layers, export_layer = GetCommandData(layer, frameNumber)
     
     if command == nil then
         return
@@ -202,6 +202,20 @@ local function  doExecute(layer, frameNumber)
         return true
     end
 
+end
+
+function SelectTargetLayer()
+    local frameNumber = app.range.frames[1].frameNumber
+    local layer = app.range.layers[1]
+    local command, target_layers, exclude_layers, export_layer = RestoreLayerMetaData(layer)
+    if command == nil then
+        return false
+    end
+    if app.activeSprite.selection ~= nil then
+        app.activeSprite.selection:deselect()
+    end
+
+    MaskByColorOnLayers(target_layers, frameNumber, exclude_layers)
 end
 
 local function add_layer(layer, layers)

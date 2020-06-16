@@ -116,6 +116,52 @@ function EditLayerMetaDataDialogShow()
     end, nil)
 end
 
+function EditCelMetaDataDialogShow()
+    if #app.range.layers <= 0 or #app.range.frames <= 0 then
+        return
+    end
+    local layer = app.range.layers[1]
+    local frameNumber = app.range.frames[1].frameNumber
+    local cel = layer:cel(frameNumber)
+    local metadata = nil
+    if cel ~= nil then
+        metadata = GetCelMetaData(cel)
+    else
+        metadata = GetLayerMetaData(layer)
+    end
+    if metadata == nil then
+        metadata = CreateDefaultMetaData()
+    end
+
+    EditDialogShow(metadata,
+    function (new_metadata)
+        for i, v in ipairs(app.range.frames) do
+            local cel = layer:cel(v.frameNumber)
+            if cel == nil then
+                cel = app.activeSprite:newCel(layer, v)
+            end
+            SetCelMetaData(cel, new_metadata)
+        end
+    end, nil)
+end
+
+--- target_layerと同一階層の一番上に指定名のレイヤーを作成する
+--- force_createがfalseの場合、同一名のレイヤーが存在しない場合のみ作成する
+local function CreateLayerTop(target_layer, name, fource_create)
+    if not fource_create then
+        local found_layers = {}
+        search_layer(app.activeSprite.layers, name, found_layers)
+        if #found_layers>0 then
+            return found_layers[1]
+        end
+    end
+    local new_layer = app.activeSprite:newLayer()
+    new_layer.parent = target_layer.parent
+    new_layer.stackIndex = #target_layer.parent.layers
+    new_layer.name = name
+    return new_layer
+end
+
 function CreateLayerMetaDataDialogShow()
     if #app.range.layers <= 0 then
         return
@@ -128,17 +174,11 @@ function CreateLayerMetaDataDialogShow()
     
     EditDialogShow(metadata,
     function (new_metadata)
-        local mask_layer = app.activeSprite:newLayer()
-        mask_layer.parent = last_layer.parent
-        mask_layer.stackIndex = #last_layer.parent.layers
+        -- マスクレイヤーの作成
+        local mask_layer = CreateLayerTop(last_layer, "", true)
         SetLayerMetaData(mask_layer, new_metadata)
-        local export_layers = {}
-        search_layers(app.activeSprite.layers, metadata.export_names, export_layers)
-        if #export_layers <= 0 then
-            local export_layer = app.activeSprite:newLayer()
-            export_layer.parent = mask_layer.parent
-            export_layer.stackIndex = #last_layer.parent.layers
-            export_layer.name = metadata.export_names[1]
-        end
+
+        -- エクスポートレイヤーの作成
+        CreateLayerTop(last_layer, metadata.export_names[1], false)
     end, nil)
 end

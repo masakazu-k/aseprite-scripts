@@ -12,6 +12,12 @@ function init(plugin)
       group="cel_popup_new",
       onclick=AutoMerge
     }
+    plugin:newCommand{
+      id="toSelectTargetLayer",
+      title="Auto Select",
+      group="cel_popup_new",
+      onclick=SelectTargetLayer
+    }
     
     plugin:newCommand{
       id="toLoopExtending",
@@ -30,6 +36,13 @@ function init(plugin)
     ------------------------------------------------------------------------------
     -- Dialogs
     ------------------------------------------------------------------------------
+    plugin:newCommand{
+      id="toEditCelMetaDataDialogShow",
+      title="Mask Options(Cel)",
+      group="cel_popup_new",
+      onclick=EditCelMetaDataDialogShow
+    }
+
     plugin:newCommand{
       id="toCreateLayerMetaDataDialogShow",
       title="New Mask Layer",

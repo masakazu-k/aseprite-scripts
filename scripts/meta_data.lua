@@ -134,6 +134,17 @@ function RestoreCelMetaData(cel)
     return nil, nil, nil, nil
 end
 
+function GetCommandData(layer, frameNumber)
+    local c = layer:cel(frameNumber)
+    if c ~= nil then
+        local command, target_layers, exclude_layers, export_layer = RestoreCelMetaData(c)
+        if command ~= nil then
+            return command, target_layers, exclude_layers, export_layer
+        end
+    end
+    return RestoreLayerMetaData(layer)
+end
+
 function SetLayerMetaData(layer, metadata)
     if metadata == nil or metadata["command"] == nil then
         layer.data = ""
@@ -141,14 +152,16 @@ function SetLayerMetaData(layer, metadata)
     end
     layer.data = stringify_metadata_v1(metadata)
     layer.name = layer.data
+    layer.color = Color{ r=115, g=0, b=255, a=255 }
 end
 
-function SetLayerCelData(cel, metadata)
+function SetCelMetaData(cel, metadata)
     if metadata == nil or metadata["command"] == nil then
         cel.data = ""
         return
     end
     cel.data = stringify_metadata_v1(metadata)
+    cel.color = Color{ r=115, g=0, b=255, a=100 }
 end
 
 function CreateDefaultMetaData()
