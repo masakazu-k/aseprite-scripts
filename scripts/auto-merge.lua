@@ -3,7 +3,7 @@
 -- 共通ここから
 -------------------------------------------------------------------------------
 
-local function MaskByColorOnCel(cel)
+local function MaskByColorOnCel(cel, select)
     local points = {}
     if cel ~= nil then
       for it in cel.image:pixels() do
@@ -16,17 +16,15 @@ local function MaskByColorOnCel(cel)
     if #points <= 0 then
         return
     end
-    local _select = Selection()
     for i = 1, #points do
       local p = points[i]
       local r = Rectangle(p.x, p.y, 1 ,1)
       -- マスク対象エリアを選択
-      _select:add(Selection(r))
+      select:add(Selection(r))
     end
-    cel.sprite.selection:add(_select)
 end
 
-local function MaskByColorOnLayer(layer, frameNumber, selected_layers, exclude_layers)
+local function MaskByColorOnLayer(layer, frameNumber, selected_layers, exclude_layers, select)
     -- app.alert(layer.name)
     if layer.isImage and not contains(exclude_layers, layer) then
         -- MaskByColorOnCel(layer, frameNumber)
@@ -35,7 +33,7 @@ local function MaskByColorOnLayer(layer, frameNumber, selected_layers, exclude_l
     elseif layer.isGroup then
         -- グループ配下の全レイヤーを処理
         for i,l in ipairs(layer.layers) do
-            MaskByColorOnLayer(l, frameNumber, selected_layers, exclude_layers)
+            MaskByColorOnLayer(l, frameNumber, selected_layers, exclude_layers, select)
         end
     end
 end
@@ -54,12 +52,16 @@ end
 
 local function MaskByColorOnLayers(layers, frameNumber, exclude_layers)
     local selected_layers = {}
+    local select = Selection()
     -- app.command.MaskByColor()
     for i=1, #layers do
         local layer = layers[i]
         if layer.isVisible then
-            MaskByColorOnLayer(layer, frameNumber, selected_layers, exclude_layers)
+            MaskByColorOnLayer(layer, frameNumber, selected_layers, exclude_layers, select)
         end
+    end
+    if #layers > 0 then
+        layers[1].sprite.selection:add(select)
     end
     return selected_layers
 end
@@ -126,7 +128,7 @@ local function  doExecute(layer, frameNumber)
 
     if command == "merge" then
         if app.activeSprite.selection ~= nil then
-            app.activeSprite.selection:deselect()
+            app.command.DeselectMask()
         end
 
         local selected_layers = MaskByColorOnLayers(include_layers, frameNumber, exclude_layers)
@@ -152,7 +154,7 @@ local function  doExecute(layer, frameNumber)
 
     if command == "outline" then
         if app.activeSprite.selection ~= nil then
-            app.activeSprite.selection:deselect()
+            app.command.DeselectMask()
         end
         app.activeFrame = export_layer.sprite.frames[frameNumber]
         app.activeLayer = export_layer
@@ -163,18 +165,18 @@ local function  doExecute(layer, frameNumber)
         app.command.ClearCel()
         app.command.Fill()
 
-        app.activeSprite.selection:deselect()
+        app.command.DeselectMask()
         return false
     end
 
     if command == "mask" or command == "imask" then
         if app.activeSprite.selection ~= nil then
-            app.activeSprite.selection:deselect()
+            app.command.DeselectMask()
         end
 
         app.activeFrame = export_layer.sprite.frames[frameNumber]
         app.activeLayer = export_layer
-        app.activeSprite.selection:deselect()
+        app.command.DeselectMask()
 
         MaskByColorOnLayer(layer, frameNumber, {}, exclude_layers)
         local selected_layers = GetAllMaskTargetList(include_layers, frameNumber, exclude_layers)
@@ -197,7 +199,7 @@ local function  doExecute(layer, frameNumber)
         for i,l in ipairs(unvisile_layers) do
             l.isVisible = true
         end
-        app.activeSprite.selection:deselect()
+        app.command.DeselectMask()
 
         return true
     end
@@ -212,7 +214,7 @@ function SelectTargetLayer()
         return false
     end
     if app.activeSprite.selection ~= nil then
-        app.activeSprite.selection:deselect()
+        app.command.DeselectMask()
     end
 
     MaskByColorOnLayers(include_layers, frameNumber, exclude_layers)
