@@ -70,7 +70,7 @@ local function EditDialogShow(metadata, save, position)
         end
     }
     
-    dlg:label{text="Export Layer"}
+    dlg:label{text="Export Layer (Copy to)"}
     local export_layer = ""
     if #metadata.export_names >0 then
         export_layer = metadata.export_names[1]
@@ -88,7 +88,10 @@ local function EditDialogShow(metadata, save, position)
         dlg:close()
         EditDialogShow(metadata, save, bounds)
     end
-    DialogEditLayerList(dlg, "Target Layers", metadata.target_names, "target_layer_", reopen)
+
+    dlg:label{text="Source Layer (Copy from)"}
+    dlg:newrow()
+    DialogEditLayerList(dlg, "Include Layers", metadata.target_names, "include_layer_", reopen)
     DialogEditLayerList(dlg, "Exclude Layers", metadata.exclude_names, "exclude_layer_", reopen)
 
     --dlg:check{ id="export_to_self", label="export to self", text="", selected=false}
@@ -145,9 +148,9 @@ function EditCelMetaDataDialogShow()
     end, nil)
 end
 
---- target_layerと同一階層の一番上に指定名のレイヤーを作成する
+--- include_layerと同一階層の一番上に指定名のレイヤーを作成する
 --- force_createがfalseの場合、同一名のレイヤーが存在しない場合のみ作成する
-local function CreateLayerTop(target_layer, name, fource_create)
+local function CreateLayerTop(include_layer, name, fource_create)
     if not fource_create then
         local found_layers = {}
         search_layer(app.activeSprite.layers, name, found_layers)
@@ -156,8 +159,8 @@ local function CreateLayerTop(target_layer, name, fource_create)
         end
     end
     local new_layer = app.activeSprite:newLayer()
-    new_layer.parent = target_layer.parent
-    new_layer.stackIndex = #target_layer.parent.layers
+    new_layer.parent = include_layer.parent
+    new_layer.stackIndex = #include_layer.parent.layers
     new_layer.name = name
     return new_layer
 end

@@ -62,26 +62,26 @@ local function MaskByColorOnLayers(layers, frameNumber, exclude_layers)
     return selected_layers
 end
 
-local function GetMaskTargetList(layer, frameNumber, target_layers, exclude_layers)
+local function GetMaskTargetList(layer, frameNumber, include_layers, exclude_layers)
     if layer.isImage and contains(exclude_layers, layer) then
-        target_layers[#target_layers+1] = layer
+        include_layers[#include_layers+1] = layer
     elseif layer.isGroup then
         -- グループ配下の全レイヤーを処理
         for i,l in ipairs(layer.layers) do
-            GetMaskTargetList(l, frameNumber, target_layers, exclude_layers)
+            GetMaskTargetList(l, frameNumber, include_layers, exclude_layers)
         end
     end
 end
 
 local function GetAllMaskTargetList(layers, frameNumber, exclude_layers)
-    local target_layers = {}
+    local include_layers = {}
     for i=1, #layers do
         local layer = layers[i]
         if layer.isVisible then
-            GetMaskTargetList(layer, frameNumber, target_layers, exclude_layers)
+            GetMaskTargetList(layer, frameNumber, include_layers, exclude_layers)
         end
     end
-    return target_layers
+    return include_layers
     
 end
 local function SwitchVisible(layer, excludes, layers)

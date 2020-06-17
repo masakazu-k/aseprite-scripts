@@ -23,8 +23,8 @@ local function parse_export_v1(strdata)
 end
 
 --- 入力レイヤーデータを復元する
---- [format] target layer1,target layer2,...[:exclude layer1,exclude layer2,...]
-local function parse_target_v1(strdata)
+--- [format] include layer1,include layer2,...[:exclude layer1,exclude layer2,...]
+local function parse_source_v1(strdata)
     local exclude_names = {}
     local target_names = {}
     -- マスク対象等のレイヤを調べる
@@ -39,12 +39,12 @@ local function parse_target_v1(strdata)
 end
 
 --- メタデータ文字列からデータを復元する
---- [format] command[:export layer1,export layer2,...]=target layer1,target layer2,...[:exclude layer1,exclude layer2,...]
+--- [format] command[:export layer1,export layer2,...]=include layer1,include layer2,...[:exclude layer1,exclude layer2,...]
 local function parse_metadata_v1(strdata)
     local sp_layer_name = split(strdata, "=")
     if #sp_layer_name == 2 then
         local command, export_names = parse_export_v1(sp_layer_name[1])
-        local target_names, exclude_names = parse_target_v1(sp_layer_name[2])
+        local target_names, exclude_names = parse_source_v1(sp_layer_name[2])
         return {
             command = command,
             export_names = export_names,
@@ -83,17 +83,17 @@ function RestoreMetaData(sprite, layer, metadata)
     local export_names = metadata["export_names"]
     
     local export_layers = {}
-    local target_layers = {}
+    local include_layers = {}
     local exclude_layers = {}
     if export_names ~= nil and #export_names >0 then
         search_layers(sprite.layers, export_names, export_layers)
     else
         export_layers = {layer}
     end
-    search_layers(sprite.layers, target_names, target_layers)
+    search_layers(sprite.layers, target_names, include_layers)
     search_layers(sprite.layers, exclude_names, exclude_layers)
     --- TODO:マルチエクスポート対応する
-    return command, target_layers, exclude_layers, export_layers[1]
+    return command, include_layers, exclude_layers, export_layers[1]
 end
 
 function GetLayerMetaData(layer)
@@ -137,9 +137,9 @@ end
 function GetCommandData(layer, frameNumber)
     local c = layer:cel(frameNumber)
     if c ~= nil then
-        local command, target_layers, exclude_layers, export_layer = RestoreCelMetaData(c)
+        local command, include_layers, exclude_layers, export_layer = RestoreCelMetaData(c)
         if command ~= nil then
-            return command, target_layers, exclude_layers, export_layer
+            return command, include_layers, exclude_layers, export_layer
         end
     end
     return RestoreLayerMetaData(layer)
