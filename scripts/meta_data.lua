@@ -26,16 +26,16 @@ end
 --- [format] include layer1,include layer2,...[:exclude layer1,exclude layer2,...]
 local function parse_source_v1(strdata)
     local exclude_names = {}
-    local target_names = {}
+    local include_names = {}
     -- マスク対象等のレイヤを調べる
     local layer_types = split(strdata, ":")
     if #layer_types == 2 then
-        target_names = split(layer_types[1], ",")
+        include_names = split(layer_types[1], ",")
         exclude_names = split(layer_types[2], ",")
     else
-        target_names = split(strdata, ",")
+        include_names = split(strdata, ",")
     end
-    return target_names, exclude_names
+    return include_names, exclude_names
 end
 
 --- メタデータ文字列からデータを復元する
@@ -44,11 +44,11 @@ local function parse_metadata_v1(strdata)
     local sp_layer_name = split(strdata, "=")
     if #sp_layer_name == 2 then
         local command, export_names = parse_export_v1(sp_layer_name[1])
-        local target_names, exclude_names = parse_source_v1(sp_layer_name[2])
+        local include_names, exclude_names = parse_source_v1(sp_layer_name[2])
         return {
             command = command,
             export_names = export_names,
-            target_names = target_names,
+            include_names = include_names,
             exclude_names = exclude_names
         }
     else
@@ -59,7 +59,7 @@ end
 --- メタデータからメタデータ文字列を生成する
 local function stringify_metadata_v1(metadata)
     local command = metadata["command"]
-    local target_names = metadata["target_names"]
+    local include_names = metadata["include_names"]
     local exclude_names = metadata["exclude_names"]
     local export_names = metadata["export_names"]
 
@@ -67,7 +67,7 @@ local function stringify_metadata_v1(metadata)
     if export_names~=nil and #export_names > 0 then
         strdata = strdata..":"..join(export_names, ",")
     end
-    strdata = strdata.."="..join(target_names, ",")
+    strdata = strdata.."="..join(include_names, ",")
     if exclude_names~=nil and #exclude_names > 0 then
         strdata = strdata..":"..join(exclude_names, ",")
     end
@@ -78,7 +78,7 @@ end
 --- メタデータ文字列から元のデータを復元する
 function RestoreMetaData(sprite, layer, metadata)
     local command = metadata["command"]
-    local target_names = metadata["target_names"]
+    local include_names = metadata["include_names"]
     local exclude_names = metadata["exclude_names"]
     local export_names = metadata["export_names"]
     
@@ -90,7 +90,7 @@ function RestoreMetaData(sprite, layer, metadata)
     else
         export_layers = {layer}
     end
-    search_layers(sprite.layers, target_names, include_layers)
+    search_layers(sprite.layers, include_names, include_layers)
     search_layers(sprite.layers, exclude_names, exclude_layers)
     --- TODO:マルチエクスポート対応する
     return command, include_layers, exclude_layers, export_layers[1]
@@ -168,7 +168,7 @@ function CreateDefaultMetaData()
     return {
         command = "mask",
         export_names = {},
-        target_names = {},
+        include_names = {},
         exclude_names = {}
     }
 end

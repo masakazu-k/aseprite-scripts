@@ -91,7 +91,7 @@ local function EditDialogShow(metadata, save, position)
 
     dlg:label{text="Source Layer (Copy from)"}
     dlg:newrow()
-    DialogEditLayerList(dlg, "Include Layers", metadata.target_names, "include_layer_", reopen)
+    DialogEditLayerList(dlg, "Include Layers", metadata.include_names, "include_layer_", reopen)
     DialogEditLayerList(dlg, "Exclude Layers", metadata.exclude_names, "exclude_layer_", reopen)
 
     --dlg:check{ id="export_to_self", label="export to self", text="", selected=false}
@@ -170,9 +170,9 @@ function CreateLayerMetaDataDialogShow()
         return
     end
     local last_layer = app.range.layers[1]
-    local target_names = get_layer_name_list_for_range(app.range.layers)
+    local include_names = get_layer_name_list_for_range(app.range.layers)
     local metadata = CreateDefaultMetaData()
-    metadata.target_names = target_names
+    metadata.include_names = include_names
     metadata.export_names = {"$masked"}
     
     EditDialogShow(metadata,
