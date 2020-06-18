@@ -46,6 +46,7 @@ local function parse_metadata_v1(strdata)
         local command, export_names = parse_export_v1(sp_layer_name[1])
         local include_names, exclude_names = parse_source_v1(sp_layer_name[2])
         return {
+            ver = "v1",
             command = command,
             export_names = export_names,
             include_names = include_names,
@@ -75,6 +76,49 @@ local function stringify_metadata_v1(metadata)
     
 end
 
+local stringify_table = nil
+local function stringify_data(data)
+    local types = type(data)
+    if types == "string" then
+        return "\"" .. string.gsub(data, "\"", "\\\"") .. "\""
+    elseif types == "number" or types == "boolean" then
+        return tostring(data)
+    else
+        return stringify_table(data)
+    end
+end
+
+stringify_table = function (data)
+    local strdata = "{"
+    local check = false
+    for i, v in pairs(data) do
+        if check then
+            strdata = strdata..","
+        end
+        if type(i) == "number" then
+            strdata = strdata..stringify_data(v)
+        else
+            strdata = strdata..tostring(i).."="..stringify_data(v)
+        end
+        check = true
+    end
+    strdata = strdata.."}"
+    return strdata
+end
+
+function stringify_metadata_v2(metadata)
+    metadata["ver"] = "v2"
+    return "return "..stringify_table(metadata)
+end
+
+function parse_metadata_v2(strdata)
+    local f,e = load(strdata)
+    if f==nil then
+        return nil
+    end
+    return f()
+end
+
 --- メタデータ文字列から元のデータを復元する
 function RestoreMetaData(sprite, layer, metadata)
     local command = metadata["command"]
@@ -99,9 +143,12 @@ end
 function GetLayerMetaData(layer)
     local metadata = nil
     if layer.data ~= nil then
-        metadata = parse_metadata_v1(layer.data)
+        metadata = parse_metadata_v2(layer.data)
         if metadata == nil then
-            metadata = parse_metadata_v1(layer.name)
+            metadata = parse_metadata_v1(layer.data)
+            if metadata == nil then
+                metadata = parse_metadata_v1(layer.name)
+            end
         end
     end
     return metadata
@@ -150,8 +197,12 @@ function SetLayerMetaData(layer, metadata)
         layer.data = ""
         return
     end
-    layer.data = stringify_metadata_v1(metadata)
-    layer.name = layer.data
+    if metadata.ver == "v1" then
+        layer.data = stringify_metadata_v1(metadata)
+        layer.name = layer.data
+    else
+        layer.data = stringify_metadata_v2(metadata)
+    end
     layer.color = Color{ r=115, g=0, b=255, a=255 }
 end
 
@@ -160,12 +211,17 @@ function SetCelMetaData(cel, metadata)
         cel.data = ""
         return
     end
-    cel.data = stringify_metadata_v1(metadata)
+    if metadata.ver == "v1" then
+        cel.data = stringify_metadata_v1(metadata)
+    else
+        cel.data = stringify_metadata_v2(metadata)
+    end
     cel.color = Color{ r=115, g=0, b=255, a=100 }
 end
 
 function CreateDefaultMetaData()
     return {
+        ver = "v2",
         command = "mask",
         export_names = {},
         include_names = {},
