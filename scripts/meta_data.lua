@@ -202,6 +202,7 @@ function SetLayerMetaData(layer, metadata)
         layer.name = layer.data
     else
         layer.data = stringify_metadata_v2(metadata)
+        layer.name = metadata.command.."("..join(metadata.include_names)..")"
     end
     layer.color = Color{ r=115, g=0, b=255, a=255 }
 end
