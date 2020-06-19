@@ -135,6 +135,14 @@ function ResetVisibleLayers(unvisile_layers)
     end
 end
 
+--- metadata1とmetadata2のコピー元が同一かチェック
+local function check_sametarget(metadata1, metadata2)
+    if metadata1.command ~= metadata2.command then return false end
+    if not same_array(metadata1.export_names, metadata2.export_names) then return false end
+    if not same_array(metadata1.include_names, metadata2.include_names) then return false end
+    if not same_array(metadata1.exclude_names, metadata2.exclude_names) then return false end
+    return false
+end
 -------------------------------------------------------------------------------
 -- 共通ここまで
 -------------------------------------------------------------------------------
@@ -145,43 +153,46 @@ end
 --
 -------------------------------------------------------------------------------
 
-local function SaveOffset(layer, frameNumber)
-    
-    local metadata, command = RestoreCommandData(layer, frameNumber)
-    if command == nil then
-        return
+local function SaveOffset(layer, frameNumbers)
+    local prev_metadata = nil
+    local command = nil
+    local visible_layers = {}
+
+    local export_layer = nil
+
+    for i, frameNumber in ipairs(frameNumbers) do
+        local metadata = GetMetaData(layer, frameNumber)
+        if metadata == nil then goto loopend end
+
+        -- 前フレームと処理対象が異なる場合、表示・非表示の切り替え等を行う
+        -- セルに設定が保存されている場合のみ該当
+        if prev_metadata == nil or not check_sametarget(prev_metadata, metadata) then
+            command = RestoreMetaData(layer.sprite, layer, metadata)
+            -- 表示対象レイヤの取得
+            visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
+            export_layer = command.export_layer
+        end
+        
+        -- チェック先のセルを取得
+        local cel = export_layer:cel(frameNumber)
+        if cel == nil then goto loopend end
+
+        -- 領域を選択
+        app.command.DeselectMask()
+        local select = SelectOnLayers(visible_layers)
+        
+        local offset_x, offset_y = GetCelOffset(cel, select)
+        metadata.offset_x = offset_x
+        metadata.offset_y = offset_y
+        metadata.ver = "v2"
+
+        cel = layer:cel(frameNumber)
+        if cel == nil then
+            cel = app.activeSprite:newCel(layer, frameNumber)
+        end
+        SetCelMetaData(cel, metadata)
+        ::loopend::
     end
-
-    local cel = command.export_layer:cel(frameNumber)
-    if cel == nil then
-        return
-    end
-
-    -- 表示対象レイヤの取得
-    local visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
-    -- 領域を選択
-    app.command.DeselectMask()
-    local select = SelectOnLayers(visible_layers)
-
-    local offset_x, offset_y = GetCelOffset(cel, select)
-    metadata.offset_x = offset_x
-    metadata.offset_y = offset_y
-    metadata.ver = "v2"
-
-    cel = layer:cel(frameNumber)
-    if cel == nil then
-        cel = app.activeSprite:newCel(layer, frameNumber)
-    end
-    SetCelMetaData(cel, metadata)
-end
-
---- metadata1とmetadata2のコピー元が同一かチェック
-local function check_sametarget(metadata1, metadata2)
-    if metadata1.command ~= metadata2.command then return false end
-    if not same_array(metadata1.export_names, metadata2.export_names) then return false end
-    if not same_array(metadata1.include_names, metadata2.include_names) then return false end
-    if not same_array(metadata1.exclude_names, metadata2.exclude_names) then return false end
-    return false
 end
 
 local function doCommand(layer, frameNumbers)
@@ -283,7 +294,7 @@ function SelectTargetLayer()
     end
     app.command.DeselectMask()
     -- 表示対象レイヤの取得
-    local visible_layers = GetAllVisibleLayers(include_layers, exclude_layers)
+    local visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
     -- 領域を選択
     local select = SelectOnLayers(visible_layers)
     layer.sprite.selection:add(select)
@@ -314,10 +325,8 @@ function SaveCelsOffset()
     
     app.transaction(
         function()
-            for i,frameNumber in ipairs(frameNumbers) do
-                for i,layer in ipairs(layers) do
-                    SaveOffset(layer,frameNumber)
-                end
+            for i,layer in ipairs(layers) do
+                SaveOffset(layer,frameNumbers)
             end
         end
     )
