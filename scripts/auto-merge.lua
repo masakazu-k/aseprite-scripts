@@ -109,6 +109,21 @@ local function SwitchVisibleAll(sprite, excludes)
       end
       return layers
 end
+
+--- 選択範囲の原点とセルの原点を比較しオフセットを取得する
+function GetCelOffset(cel, select)
+    return select.origin.x - cel.position.x, select.origin.y - cel.position.y
+end
+
+--- セルの原点をオフセット分移動する
+function SetCelOffsetX(cel, offset_x, offset_y)
+    local p = Point{
+        x=cel.position.x - offset_x,
+        y=cel.position.y - offset_y
+    }
+    cel.position = p 
+end
+
 -------------------------------------------------------------------------------
 -- 共通ここまで
 -------------------------------------------------------------------------------
@@ -119,9 +134,35 @@ end
 --
 -------------------------------------------------------------------------------
 
+local function SaveOffset(layer, frameNumber)
+    
+    local metadata, command, include_layers, exclude_layers, export_layer = RestoreCommandData(layer, frameNumber)
+
+    if command == nil then
+        return
+    end
+    local cel = export_layer:cel(frameNumber)
+    if cel == nil then
+        return
+    end
+    app.command.DeselectMask()
+    local selected_layers, select = MaskByColorOnLayers(include_layers, frameNumber, exclude_layers)
+
+    local offset_x, offset_y = GetCelOffset(cel, select)
+    metadata.offset_x = offset_x
+    metadata.offset_y = offset_y
+    metadata.ver = "v2"
+
+    cel = layer:cel(frameNumber)
+    if cel == nil then
+        cel = app.activeSprite:newCel(layer, frameNumber)
+    end
+    SetCelMetaData(cel, metadata)
+end
+
 local function  doExecute(layer, frameNumber)
 
-    local command, include_layers, exclude_layers, export_layer = GetCommandData(layer, frameNumber)
+    local metadata, command, include_layers, exclude_layers, export_layer = RestoreCommandData(layer, frameNumber)
     
     if command == nil then
         return
@@ -148,7 +189,11 @@ local function  doExecute(layer, frameNumber)
         for i,l in ipairs(unvisile_layers) do
             l.isVisible = true
         end
-        return true
+
+        if metadata.ver == "v2" then
+            SetCelOffsetX(layer:cel(frameNumber), metadata.offset_x, metadata.offset_y)
+        end
+        return true, metadata
     end
 
     if command == "outline" then
@@ -198,7 +243,7 @@ local function  doExecute(layer, frameNumber)
         end
         app.command.DeselectMask()
 
-        return true
+        return true, metadata
     end
 
 end
@@ -206,7 +251,7 @@ end
 function SelectTargetLayer()
     local frameNumber = app.range.frames[1].frameNumber
     local layer = app.range.layers[1]
-    local command, include_layers, exclude_layers, export_layer = RestoreLayerMetaData(layer)
+    local metadata, command, include_layers, exclude_layers, export_layer = RestoreCommandData(layer, frameNumber)
     if command == nil then
         return false
     end
@@ -225,8 +270,37 @@ local function add_layer(layer, layers)
     layers[#layers+1] = layer
 end
 
+function SaveCelsOffset()
+    local frameNumbers = {}
+    local layers = {}
+    
+    local oldActiveFrame = app.activeFrame
+    local oldActiveLayer = app.activeLayer
+    for i,f in ipairs(app.range.frames) do
+        frameNumbers[#frameNumbers+1] = f.frameNumber
+    end
+
+    for i,l in ipairs(app.range.layers) do
+        add_layer(l, layers)
+    end
+    
+    app.transaction(
+        function()
+            for i,frameNumber in ipairs(frameNumbers) do
+                for i,layer in ipairs(layers) do
+                    SaveOffset(layer,frameNumber)
+                end
+            end
+        end
+    )
+    app.activeFrame = oldActiveFrame
+    app.activeLayer = oldActiveLayer
+    app.refresh()
+end
+
 function AutoMerge()
     local paste = false
+    local metadata = nil
     local frameNumbers = {}
     local layers = {}
     
@@ -244,12 +318,16 @@ function AutoMerge()
         function()
         for i,frameNumber in ipairs(frameNumbers) do
             for i,l in ipairs(layers) do
-                paste = doExecute(l, frameNumber)
+                paste, metadata = doExecute(l, frameNumber)
                 if paste then
                     local isVisible = app.activeLayer.isVisible
                     app.activeLayer.isVisible = true
                     app.command.Paste()
                     app.command.DeselectMask()
+                    local cel = app.activeLayer:cel(frameNumber)
+                    if cel ~= nil then
+                        SetCelOffsetX(app.activeLayer:cel(frameNumber), metadata.offset_x, metadata.offset_y)
+                    end
                     app.activeLayer.isVisible = isVisible
                 end
             end

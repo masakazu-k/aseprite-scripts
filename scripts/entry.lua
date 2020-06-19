@@ -28,6 +28,13 @@ function init(plugin)
     }
 
     plugin:newCommand{
+      id="toSaveCelsOffset",
+      title="-> Store Offset",
+      group="cel_popup_new",
+      onclick=SaveCelsOffset
+    }
+
+    plugin:newCommand{
       id="toMergeDownOnlySelected",
       title="Merge Down(Selected)",
       group="cel_popup_new",

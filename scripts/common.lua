@@ -123,3 +123,10 @@ function join_layer_name(layers)
     local names = {}
     return join(get_layer_name_list(layers), ",")
 end
+
+function join_table(table1, table2)
+    for i, v in pairs(table2) do
+        table1[i] = table2[i]
+    end
+    return table1
+end

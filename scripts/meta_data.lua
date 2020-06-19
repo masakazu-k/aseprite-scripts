@@ -47,10 +47,13 @@ local function parse_metadata_v1(strdata)
         local include_names, exclude_names = parse_source_v1(sp_layer_name[2])
         return {
             ver = "v1",
+            inherit = true,
             command = command,
             export_names = export_names,
             include_names = include_names,
-            exclude_names = exclude_names
+            exclude_names = exclude_names,
+            offset_x = 0,
+            offset_y = 0
         }
     else
         return nil
@@ -137,7 +140,7 @@ function RestoreMetaData(sprite, layer, metadata)
     search_layers(sprite.layers, include_names, include_layers)
     search_layers(sprite.layers, exclude_names, exclude_layers)
     --- TODO:マルチエクスポート対応する
-    return command, include_layers, exclude_layers, export_layers[1]
+    return metadata, command, include_layers, exclude_layers, export_layers[1]
 end
 
 function GetLayerMetaData(layer)
@@ -157,39 +160,54 @@ end
 function GetCelMetaData(cel)
     local metadata = nil
     if cel.data ~= nil then
-        metadata = parse_metadata_v1(cel.data)
+        metadata = parse_metadata_v2(cel.data)
+        if metadata == nil then
+            metadata = parse_metadata_v1(cel.data)
+        end
     end
     return metadata
 end
 
-function RestoreLayerMetaData(layer)
-    local metadata = GetLayerMetaData(layer)
-    if metadata ~= nil then
-        return RestoreMetaData(layer.sprite, layer, metadata)
-    end
-    
-    return nil, nil, nil, nil
+function inherit_metadata(child, parent)
+    child.command = parent.command
+    child.export_names = parent.export_names
+    child.include_names = parent.include_names
+    child.exclude_names = parent.exclude_names
+    return child
 end
 
-function RestoreCelMetaData(cel)
-    local metadata = GetCelMetaData(cel)
-    if metadata ~= nil then
-        local layer = cel.layer
-        return RestoreMetaData(layer.sprite, layer, metadata)
-    end
-
-    return nil, nil, nil, nil
-end
-
-function GetCommandData(layer, frameNumber)
+--- LayerとCelからメタデータを読み込む
+--- Celのメタデータが優先される
+--- inheritがtrueの場合はLayerのメタデータが一部優先される
+function GetMetaData(layer, frameNumber)
+    local layer_metadata = GetLayerMetaData(layer)
+    local cel_metadata = nil
     local c = layer:cel(frameNumber)
     if c ~= nil then
-        local command, include_layers, exclude_layers, export_layer = RestoreCelMetaData(c)
-        if command ~= nil then
-            return command, include_layers, exclude_layers, export_layer
-        end
+        cel_metadata = GetCelMetaData(c)
     end
-    return RestoreLayerMetaData(layer)
+    
+    if cel_metadata ~= nil and layer_metadata ~= nil then
+        if cel_metadata.inherit == true or cel_metadata.inherit == nil then
+            -- 親（レイヤ）の設定から継承する場合
+            cel_metadata = inherit_metadata(cel_metadata, layer_metadata)
+            return cel_metadata
+        end
+        return join_table(layer_metadata, cel_metadata)
+    elseif layer_metadata ~= nil then
+        return layer_metadata
+    elseif cel_metadata ~= nil then
+        return cel_metadata
+    end
+    return nil
+end
+
+function RestoreCommandData(layer, frameNumber)
+    local metadata = GetMetaData(layer, frameNumber)
+    if metadata ~= nil then
+        return RestoreMetaData(layer.sprite, layer, metadata)
+    end
+    return nil, nil, nil, nil, nil
 end
 
 function SetLayerMetaData(layer, metadata)
@@ -202,7 +220,6 @@ function SetLayerMetaData(layer, metadata)
         layer.name = layer.data
     else
         layer.data = stringify_metadata_v2(metadata)
-        layer.name = metadata.command.."("..join(metadata.include_names)..")"
     end
     layer.color = Color{ r=115, g=0, b=255, a=255 }
 end
@@ -223,9 +240,12 @@ end
 function CreateDefaultMetaData()
     return {
         ver = "v2",
+        inherit = true,
         command = "mask",
         export_names = {},
         include_names = {},
-        exclude_names = {}
+        exclude_names = {},
+        offset_x = 0,
+        offset_y = 0
     }
 end
