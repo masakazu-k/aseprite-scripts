@@ -57,6 +57,21 @@ function contains(array, item)
     return false
 end
 
+--- 同一配列か調べる（順不同）
+--- ただし重複要素は無いものとする
+function same_array(array1, array2)
+    if #array1 ~= #array2 then
+        return false
+    else
+        for i, v in ipairs(array1) do
+            if not contains(array2, v) then
+                return false
+            end
+        end
+    end
+    return true
+end
+
 --- 配列内の要素を削除した上で詰め替える
 function remove(array, index)
     if index > #array then

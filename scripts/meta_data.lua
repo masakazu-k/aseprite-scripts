@@ -139,8 +139,14 @@ function RestoreMetaData(sprite, layer, metadata)
     end
     search_layers(sprite.layers, include_names, include_layers)
     search_layers(sprite.layers, exclude_names, exclude_layers)
-    --- TODO:マルチエクスポート対応する
-    return metadata, command, include_layers, exclude_layers, export_layers[1]
+
+    return {
+        command = command,
+        export_layer = export_layers[1],
+        export_layers = export_layers,
+        include_layers = include_layers,
+        exclude_layers = exclude_layers
+    }
 end
 
 function GetLayerMetaData(layer)
@@ -205,9 +211,9 @@ end
 function RestoreCommandData(layer, frameNumber)
     local metadata = GetMetaData(layer, frameNumber)
     if metadata ~= nil then
-        return RestoreMetaData(layer.sprite, layer, metadata)
+        return metadata, RestoreMetaData(layer.sprite, layer, metadata)
     end
-    return nil, nil, nil, nil, nil
+    return nil, nil
 end
 
 function SetLayerMetaData(layer, metadata)
@@ -235,6 +241,15 @@ function SetCelMetaData(cel, metadata)
         cel.data = stringify_metadata_v2(metadata)
     end
     cel.color = Color{ r=115, g=0, b=255, a=100 }
+end
+
+function CreateDefaultCommandData()
+    return {
+        command = "mask",
+        export_layers = {},
+        include_layers = {},
+        exclude_layers = {}
+    }
 end
 
 function CreateDefaultMetaData()
