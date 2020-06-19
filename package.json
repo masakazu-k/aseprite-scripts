@@ -1,8 +1,8 @@
 {
-    "name": "mask-like-scripts",
-    "displayName": "mask-like-scripts",
-    "description": "Mask Like Scripts",
-    "version": "0.1",
+    "name": "mask-like-extension",
+    "displayName": "mask-like-extension",
+    "description": "Mask Like Extension",
+    "version": "0.1.1",
     "author": {
         "name": "masakazu-k",
         "url": "https://github.com/masakazu-k"
