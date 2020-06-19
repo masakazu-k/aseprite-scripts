@@ -141,7 +141,7 @@ local function check_sametarget(metadata1, metadata2)
     if not same_array(metadata1.export_names, metadata2.export_names) then return false end
     if not same_array(metadata1.include_names, metadata2.include_names) then return false end
     if not same_array(metadata1.exclude_names, metadata2.exclude_names) then return false end
-    return false
+    return true
 end
 -------------------------------------------------------------------------------
 -- 共通ここまで
@@ -179,7 +179,7 @@ local function SaveOffset(layer, frameNumbers)
 
         -- 領域を選択
         app.command.DeselectMask()
-        local select = SelectOnLayers(visible_layers)
+        local select = SelectOnLayers(visible_layers, frameNumber)
         
         local offset_x, offset_y = GetCelOffset(cel, select)
         metadata.offset_x = offset_x
@@ -191,6 +191,7 @@ local function SaveOffset(layer, frameNumbers)
             cel = app.activeSprite:newCel(layer, frameNumber)
         end
         SetCelMetaData(cel, metadata)
+        prev_metadata = metadata
         ::loopend::
     end
 end
@@ -246,7 +247,7 @@ local function doCommand(layer, frameNumbers)
             app.command.ClearCel()
     
             -- 領域を選択
-            local select = SelectOnLayers(visible_layers)
+            local select = SelectOnLayers(visible_layers, frameNumber)
             layer.sprite.selection:add(select)
             app.command.ModifySelection{ modifier="expand", quantity=1, brush="circle" }
     
@@ -278,7 +279,7 @@ local function doCommand(layer, frameNumbers)
             -- ペースト
             Paste(export_layer, frameNumber, metadata)
         end
-    
+        prev_metadata = metadata
         ::loopend::
     end
     -- 非表示レイヤを元に戻す
@@ -296,7 +297,7 @@ function SelectTargetLayer()
     -- 表示対象レイヤの取得
     local visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
     -- 領域を選択
-    local select = SelectOnLayers(visible_layers)
+    local select = SelectOnLayers(visible_layers, frameNumber)
     layer.sprite.selection:add(select)
 end
 
