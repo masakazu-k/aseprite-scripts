@@ -1,9 +1,9 @@
 dofile("./common.lua")
 dofile("./meta_data.lua")
-dofile("./meta_data_dialog.lua")
 dofile("./auto-merge.lua")
 dofile("./loop-extending.lua")
 dofile("./merge-down-only-selected.lua")
+dofile("./meta_data_dialog.lua")
 
 function init(plugin)
     plugin:newCommand{

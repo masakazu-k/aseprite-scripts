@@ -79,13 +79,15 @@ end
 --- 不必要なレイヤを非表示状態にする(visible_layersに含まれるレイヤ以外を非表示)
 --- 非表示にしたレイヤはunvisible_layersに格納される
 local function _SetUnvisibleLayer(layer, visible_layers, unvisile_layers)
-    if layer.isImage and layer.isVisible and not contains(visible_layers, layer) then
-        unvisile_layers[#unvisile_layers+1] = layer
-        layer.isVisible = false
-    elseif layer.isGroup then
-        -- グループ配下の全レイヤーを処理
-        for i,l in ipairs(layer.layers) do
-            _SetUnvisibleLayer(l, visible_layers, unvisile_layers)
+    if layer.isVisible then
+        if layer.isImage and not contains(visible_layers, layer) then
+            unvisile_layers[#unvisile_layers+1] = layer
+            layer.isVisible = false
+        elseif layer.isGroup then
+            -- グループ配下の全レイヤーを処理
+            for i,l in ipairs(layer.layers) do
+                _SetUnvisibleLayer(l, visible_layers, unvisile_layers)
+            end
         end
     end
 end
@@ -219,6 +221,14 @@ local function doCommand(layer, frameNumbers)
             visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
             -- 不必要なレイヤの非表示
             unvisile_layers = SetUnvisibleLayer(layer.sprite, visible_layers)
+            -- 特殊レイヤを非表示
+            for i,exclude_layer in ipairs(command.exclude_layers) do
+                if exclude_layer.isGroup and exclude_layer.isVisible then
+                    unvisile_layers[#unvisile_layers+1] = exclude_layer
+                    exclude_layer.isVisible = false
+                end
+            end
+
             command_type = command.command
             export_layer = command.export_layer
         end

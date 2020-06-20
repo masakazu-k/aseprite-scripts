@@ -52,7 +52,7 @@ local function DialogEditLayerList(dlg, label, array, prefix, reopen)
     }
 end
 
-local function EditDialogShow(metadata, save, position)
+local function EditDialogShow(metadata, is_layer, save, position)
     if metadata == nil then
         metadata = CreateDefaultMetaData()
     end
@@ -69,32 +69,60 @@ local function EditDialogShow(metadata, save, position)
             metadata.command = dlg.data.command
         end
     }
-    
-    dlg:label{text="Export Layer (Copy to)"}
-    local export_layer = ""
-    if #metadata.export_names >0 then
-        export_layer = metadata.export_names[1]
-    end
-    dlg:entry{id="export_layer", text=export_layer,
-    onchange=
-    function ()
-        if #dlg.data.export_layer > 0 then
-            metadata.export_names = {dlg.data.export_layer}
-        end
-    end
-    }
+
     local reopen = function ()
         local bounds = dlg.bounds
         dlg:close()
-        EditDialogShow(metadata, save, bounds)
+        EditDialogShow(metadata, is_layer, save, bounds)
     end
 
-    dlg:label{text="Source Layer (Copy from)"}
-    dlg:newrow()
-    DialogEditLayerList(dlg, "Include Layers", metadata.include_names, "include_layer_", reopen)
-    DialogEditLayerList(dlg, "Exclude Layers", metadata.exclude_names, "exclude_layer_", reopen)
+    if not is_layer then
+        dlg:check{id="inherit",text="Use Layer Config", selected=metadata.inherit,
+        onclick=
+        function ()
+            metadata.inherit=dlg.data.inherit
+            reopen()
+        end
+        }
+    end
+
+    if not metadata.inherit or is_layer then
+        dlg:label{text="Export Layer (Copy to)"}
+        local export_layer = ""
+        if #metadata.export_names >0 then
+            export_layer = metadata.export_names[1]
+        end
+        dlg:entry{id="export_layer", text=export_layer,
+        onchange=
+        function ()
+            if #dlg.data.export_layer > 0 then
+                metadata.export_names = {dlg.data.export_layer}
+            end
+        end
+        }
+
+        dlg:label{text="Source Layer (Copy from)"}
+        dlg:newrow()
+        DialogEditLayerList(dlg, "Include Layers", metadata.include_names, "include_layer_", reopen)
+        DialogEditLayerList(dlg, "Exclude Layers", metadata.exclude_names, "exclude_layer_", reopen)
+    end
 
     --dlg:check{ id="export_to_self", label="export to self", text="", selected=false}
+
+    dlg:separator()
+    dlg:label{text="Offset"}
+    local setOffset = function ()
+        metadata.offset_x = dlg.data.offset_x
+        metadata.offset_y = dlg.data.offset_y
+        -- local layer = app.activeLayer
+        -- local cel = layer:cel(app.activeFrame.frameNumber)
+        -- if cel ~= nil then
+        --     SetCelOffsetX(cel, metadata.offset_x, metadata.offset_y)
+        --     app.refresh()
+        -- end
+    end
+    dlg:number{id="offset_x", label="x", decimals=metadata.offset_x, onchange=setOffset}
+    dlg:number{id="offset_y", label="y", decimals=metadata.offset_y, onchange=setOffset}
 
     dlg:separator()
     dlg:button{ id="apply", text="Apply" ,onclick=function () save(metadata) dlg:close() end}
@@ -113,7 +141,7 @@ function EditLayerMetaDataDialogShow()
         metadata = CreateDefaultMetaData()
     end
 
-    EditDialogShow(metadata,
+    EditDialogShow(metadata, true,
     function (new_metadata)
         SetLayerMetaData(layer, new_metadata)
     end, nil)
@@ -136,7 +164,7 @@ function EditCelMetaDataDialogShow()
         metadata = CreateDefaultMetaData()
     end
 
-    EditDialogShow(metadata,
+    EditDialogShow(metadata, false,
     function (new_metadata)
         for i, v in ipairs(app.range.frames) do
             local cel = layer:cel(v.frameNumber)
@@ -175,7 +203,7 @@ function CreateLayerMetaDataDialogShow()
     metadata.include_names = include_names
     metadata.export_names = {"$masked"}
     
-    EditDialogShow(metadata,
+    EditDialogShow(metadata, true,
     function (new_metadata)
         -- マスクレイヤーの作成
         local mask_layer = CreateLayerTop(last_layer, "", true)
