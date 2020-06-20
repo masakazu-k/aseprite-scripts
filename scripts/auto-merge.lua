@@ -266,16 +266,25 @@ local function doCommand(layer, frameNumbers)
             app.command.DeselectMask()
         end
     
-        if command_type == "mask" or command == "imask" then
+        if command_type == "mask" or command_type == "imask" then
             -- コピー領域の選択
             app.command.DeselectMask()
-            local select = SelectOnLayer(layer)
+            local select = SelectOnLayer(layer, frameNumber)
     
-            layer.sprite.selection:add(select)
     
-            if command == "imask" then
-                app.command.InvertMask()
+            if command_type == "imask" then
+                if select.isEmpty then
+                    app.command.MaskAll()
+                else
+                    layer.sprite.selection:add(select)
+                    app.command.InvertMask()
+                end
+            else
+                layer.sprite.selection:add(select)
             end
+
+            -- コピー対象が無ければ処理終了
+            if layer.sprite.selection.isEmpty then goto loopend end
     
             -- export_layerに移動
             app.activeFrame = export_layer.sprite.frames[frameNumber]
@@ -326,8 +335,14 @@ function SaveCelsOffset()
     
     local oldActiveFrame = app.activeFrame
     local oldActiveLayer = app.activeLayer
-    for i,f in ipairs(app.range.frames) do
-        frameNumbers[#frameNumbers+1] = f.frameNumber
+    if app.range.type == RangeType.LAYERS then
+        for i,f in ipairs(app.activeSprite.frames) do
+            frameNumbers[#frameNumbers+1] = f.frameNumber
+        end
+    else
+        for i,f in ipairs(app.range.frames) do
+            frameNumbers[#frameNumbers+1] = f.frameNumber
+        end
     end
 
     for i,l in ipairs(app.range.layers) do
@@ -352,8 +367,15 @@ function AutoMerge()
     
     local oldActiveFrame = app.activeFrame
     local oldActiveLayer = app.activeLayer
-    for i,f in ipairs(app.range.frames) do
-        frameNumbers[#frameNumbers+1] = f.frameNumber
+
+    if app.range.type == RangeType.LAYERS then
+        for i,f in ipairs(app.activeSprite.frames) do
+            frameNumbers[#frameNumbers+1] = f.frameNumber
+        end
+    else
+        for i,f in ipairs(app.range.frames) do
+            frameNumbers[#frameNumbers+1] = f.frameNumber
+        end
     end
 
     for i,l in ipairs(app.range.layers) do
