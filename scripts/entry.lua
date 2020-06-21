@@ -59,6 +59,13 @@ function init(plugin)
   }
 
   plugin:newCommand{
+    id="toLockUnlockCels",
+    title="-> Lock/Unlock Merge",
+    group="cel_popup_new",
+    onclick=LockUnlockCels
+  }
+
+  plugin:newCommand{
     id="toMergeDownOnlySelected",
     title="Merge Down(Selected)",
     group="cel_popup_new",

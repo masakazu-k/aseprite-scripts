@@ -14,7 +14,7 @@ local function MaskByColorOnCel(cel)
       end
     end
     if #points <= 0 then
-        return
+        return Selection()
     end
     local select = Selection()
     for i = 1, #points do
@@ -26,17 +26,18 @@ local function MaskByColorOnCel(cel)
     return select
 end
 
---- 引数layerに指定したレイヤのAlpha値が0以上の領域を選択する
+--- 引数layerに指定したレイヤのAlpha値が0以上の領域を取得する
 local function SelectOnLayer(layer, frameNumber)
-    local select = Selection()
     local cel = layer:cel(frameNumber)
     if cel ~= nil then
-        select:add(MaskByColorOnCel(cel))
+        return MaskByColorOnCel(cel)
     end
+    -- celがない場合、空の領域を返却
+    local select = Selection()
     return select
 end
 
---- 引数layersに指定したレイヤのAlpha値が0以上の領域を選択する
+--- 引数layersに指定したレイヤのAlpha値が0以上の領域を取得する（Groupレイヤは無視）
 local function SelectOnLayers(layers, frameNumber)
     local select = Selection()
     for i, layer in ipairs(layers) do
@@ -50,7 +51,7 @@ local function SelectOnLayers(layers, frameNumber)
     return select
 end
 
---- (コピー元の)表示状態にするレイヤリストを取得する(excludeに含まれるレイヤは弾く)
+--- (コピー元の)表示状態にするレイヤリストを取得する(exclude_layersに含まれるレイヤは無視)
 local function _GetAllVisibleLayers(layer, exclude_layers, visible_layers)
     if not contains(exclude_layers, layer) then
         visible_layers[#visible_layers+1] = layer
@@ -63,7 +64,7 @@ local function _GetAllVisibleLayers(layer, exclude_layers, visible_layers)
     end
 end
 
---- include_layers配下の(コピー元の)表示状態にするレイヤリストを全て取得する(excludeに含まれるレイヤは弾く)
+--- include_layers配下の(コピー元の)表示状態にするレイヤリストを全て取得する(exclude_layersに含まれるレイヤは無視)
 local function GetAllVisibleLayers(include_layers, exclude_layers)
     local visible_layers = {}
     for i, include_layer in ipairs(include_layers) do
@@ -102,6 +103,30 @@ local function SetUnvisibleLayer(sprite, visible_layers)
       return unvisile_layers
 end
 
+--- 指定レイヤを親まで遡って強制的に表示状態にする
+local function _ForceVisibleLayer(layer, sprite, visible_layers, force_visible_layers)
+    if not layer.isVisible then
+        force_visible_layers[#force_visible_layers+1] = layer
+        layer.isVisible = true
+    end
+    if layer.parent ~= nil then
+        -- 親がSpriteの場合、例外が発生するのでそこで処理を中断する
+        -- ホントはSpriteを判断したいけど、なんか失敗するから一旦この方法をとる
+        -- _ForceVisibleLayer(layer.parent, sprite, visible_layers, force_visible_layers)
+        pcall(_ForceVisibleLayer, layer.parent, sprite, visible_layers, force_visible_layers)
+    end
+end
+
+--- 指定レイヤを親まで遡って強制的に表示状態にする
+--- 表示状態に変更したレイヤは戻り値で返却される（もともと表示状態のレイヤは含まれない）
+local function ForceVisibleLayer(sprite, visible_layers)
+    local force_visible_layers = {}
+    for i,l in ipairs(visible_layers) do
+        _ForceVisibleLayer(l, sprite, visible_layers, force_visible_layers)
+    end
+    return force_visible_layers
+end
+
 --- 指定のレイヤ・フレームにペーストする
 function Paste(export_layer, frameNumber, metadata)
     --- ペーストの実行
@@ -137,6 +162,13 @@ function ResetVisibleLayers(unvisile_layers)
     end
 end
 
+--- 指定されたレイヤを非表示状態にする
+function ResetUnVisibleLayers(visile_layers)
+    for i,l in ipairs(visile_layers) do
+        l.isVisible = false
+    end
+end
+
 --- metadata1とmetadata2のコピー元が同一かチェック
 local function check_sametarget(metadata1, metadata2)
     if metadata1.command ~= metadata2.command then return false end
@@ -145,6 +177,15 @@ local function check_sametarget(metadata1, metadata2)
     if not same_array(metadata1.exclude_names, metadata2.exclude_names) then return false end
     return true
 end
+
+--- セルがロックされているかチェック
+local function is_locked_cel(metadata)
+    if metadata.locked == nil then
+        return false
+    end
+    return metadata.locked
+end
+
 -------------------------------------------------------------------------------
 -- 共通ここまで
 -------------------------------------------------------------------------------
@@ -164,6 +205,7 @@ local function SaveOffset(layer, frameNumbers)
 
     for i, frameNumber in ipairs(frameNumbers) do
         local metadata = GetMetaData(layer, frameNumber)
+        -- メタデータがないセルはスキップ
         if metadata == nil then goto loopend end
 
         -- 前フレームと処理対象が異なる場合、表示・非表示の切り替え等を行う
@@ -175,14 +217,15 @@ local function SaveOffset(layer, frameNumbers)
             export_layer = command.export_layer
         end
         
-        -- チェック先のセルを取得
+        -- Export Layerのセルを取得
         local cel = export_layer:cel(frameNumber)
+        -- Export Layerにcelがない場合、オフセットを取得できないのでスキップ
         if cel == nil then goto loopend end
 
-        -- 領域を選択
-        app.command.DeselectMask()
+        -- Export Layerの色がある領域を取得
         local select = SelectOnLayers(visible_layers, frameNumber)
         
+        -- オフセットを取得
         local offset_x, offset_y = GetCelOffset(cel, select)
         metadata.offset_x = offset_x
         metadata.offset_y = offset_y
@@ -203,18 +246,24 @@ local function doCommand(layer, frameNumbers)
     local command = nil
     local visible_layers = {}
     local unvisile_layers = {}
+    local force_visible_layers = {}
 
     local export_layer = nil
     local command_type = "none"
 
     for i, frameNumber in ipairs(frameNumbers) do
         local metadata = GetMetaData(layer, frameNumber)
+        -- メタデータがないセルはスキップ
         if metadata == nil then goto loopend end
+        -- ロックされているセルはスキップ
+        if is_locked_cel(metadata) then goto loopend end
 
         -- 前フレームと処理対象が異なる場合、表示・非表示の切り替え等を行う
         -- セルに設定が保存されている場合のみ該当
         if prev_metadata == nil or not check_sametarget(prev_metadata, metadata) then
             command = RestoreMetaData(layer.sprite, layer, metadata)
+            -- 表示レイヤを元に戻す
+            -- ResetUnVisibleLayers(force_visible_layers)
             -- 非表示レイヤを元に戻す
             ResetVisibleLayers(unvisile_layers)
             -- 表示対象レイヤの取得
@@ -228,6 +277,8 @@ local function doCommand(layer, frameNumbers)
                     exclude_layer.isVisible = false
                 end
             end
+            -- コピー対象の内、直接指定されたレイヤを強制表示
+            -- force_visible_layers = ForceVisibleLayer(layer.sprite, command.include_layers)
 
             command_type = command.command
             export_layer = command.export_layer
@@ -301,6 +352,8 @@ local function doCommand(layer, frameNumbers)
         prev_metadata = metadata
         ::loopend::
     end
+    -- 表示レイヤを元に戻す
+    -- ResetUnVisibleLayers(force_visible_layers)
     -- 非表示レイヤを元に戻す
     ResetVisibleLayers(unvisile_layers)
 end
@@ -329,12 +382,10 @@ local function add_layer(layer, layers)
     layers[#layers+1] = layer
 end
 
-function SaveCelsOffset()
+--- 処理対象のフレームとレイヤを取得する
+local function GetTargetLayerAndFrameNumbers()
     local frameNumbers = {}
     local layers = {}
-    
-    local oldActiveFrame = app.activeFrame
-    local oldActiveLayer = app.activeLayer
     if app.range.type == RangeType.LAYERS then
         for i,f in ipairs(app.activeSprite.frames) do
             frameNumbers[#frameNumbers+1] = f.frameNumber
@@ -348,7 +399,14 @@ function SaveCelsOffset()
     for i,l in ipairs(app.range.layers) do
         add_layer(l, layers)
     end
+    return layers, frameNumbers
+end
+
+function SaveCelsOffset()
+    local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
     
+    local oldActiveFrame = app.activeFrame
+    local oldActiveLayer = app.activeLayer
     app.transaction(
         function()
             for i,layer in ipairs(layers) do
@@ -362,26 +420,10 @@ function SaveCelsOffset()
 end
 
 function AutoMerge()
-    local frameNumbers = {}
-    local layers = {}
+    local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
     
     local oldActiveFrame = app.activeFrame
     local oldActiveLayer = app.activeLayer
-
-    if app.range.type == RangeType.LAYERS then
-        for i,f in ipairs(app.activeSprite.frames) do
-            frameNumbers[#frameNumbers+1] = f.frameNumber
-        end
-    else
-        for i,f in ipairs(app.range.frames) do
-            frameNumbers[#frameNumbers+1] = f.frameNumber
-        end
-    end
-
-    for i,l in ipairs(app.range.layers) do
-        add_layer(l, layers)
-    end
-    
     app.transaction(
         function()
             for i,layer in ipairs(layers) do
@@ -389,7 +431,35 @@ function AutoMerge()
             end
         end
     )
+    app.activeFrame = oldActiveFrame
+    app.activeLayer = oldActiveLayer
+    app.refresh()
+end
 
+function LockUnlockCels()
+    local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
+    
+    local oldActiveFrame = app.activeFrame
+    local oldActiveLayer = app.activeLayer
+    app.transaction(
+        function()
+            for i,layer in ipairs(layers) do
+                for j,frameNumber in ipairs(frameNumbers) do
+                    local cel = layer:cel(frameNumber)
+                    if cel ~= nil then
+                        local metadata = GetMetaData(layer, frameNumber)
+                        metadata.ver = "v2"
+                        if metadata.locked == nil or metadata.locked == false then
+                            metadata.locked = true
+                        else
+                            metadata.locked = false
+                        end
+                        SetCelMetaData(cel, metadata)
+                    end
+                end
+            end
+        end
+    )
     app.activeFrame = oldActiveFrame
     app.activeLayer = oldActiveLayer
     app.refresh()

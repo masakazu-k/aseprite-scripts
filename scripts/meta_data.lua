@@ -216,6 +216,15 @@ function RestoreCommandData(layer, frameNumber)
     return nil, nil
 end
 
+function GetColor(metadata)
+    if metadata.locked~=nil and metadata.locked then
+        -- ロックされているセル／レイヤの色
+        return Color{ r=0, g=143, b=141, a=100 }
+    end
+    -- 通常のセル／レイヤの色
+    return Color{ r=115, g=0, b=255, a=100 }
+end
+
 function SetLayerMetaData(layer, metadata)
     if metadata == nil or metadata["command"] == nil then
         layer.data = ""
@@ -227,7 +236,7 @@ function SetLayerMetaData(layer, metadata)
     else
         layer.data = stringify_metadata_v2(metadata)
     end
-    layer.color = Color{ r=115, g=0, b=255, a=255 }
+    layer.color = GetColor(metadata)
 end
 
 function SetCelMetaData(cel, metadata)
@@ -240,7 +249,7 @@ function SetCelMetaData(cel, metadata)
     else
         cel.data = stringify_metadata_v2(metadata)
     end
-    cel.color = Color{ r=115, g=0, b=255, a=100 }
+    cel.color = GetColor(metadata)
 end
 
 function CreateDefaultCommandData()
@@ -261,6 +270,7 @@ function CreateDefaultMetaData()
         include_names = {},
         exclude_names = {},
         offset_x = 0,
-        offset_y = 0
+        offset_y = 0,
+        locked = false
     }
 end
