@@ -1,4 +1,51 @@
 ------------------------------------------------------------------------------------
+-- Meta Data const value
+------------------------------------------------------------------------------------
+
+--- メタデータの種別
+METADATA_TYPE = {
+    DEFAULT  = nil,
+    COMMAND  = 1,
+    LINK_CEL = 2
+}
+
+--- コマンドの種別
+COMMAND_TYPE = {
+    MASK         = "mask",
+    INVERSE_MASK = "imask",
+    MERGE        = "merge",
+    OUTLINE      = "outline"
+}
+------------------------------------------------------------------------------------
+-- Meta Data struct
+------------------------------------------------------------------------------------
+
+function CreateDefaultMetaData()
+    return {
+        mt = METADATA_TYPE.COMMAND,
+        ver = "v2",
+        inherit = true,
+        command = COMMAND_TYPE.MASK,
+        export_names = {},
+        include_names = {},
+        exclude_names = {},
+        offset_x = 0,
+        offset_y = 0,
+        locked = false
+    }
+end
+
+function CreateLinkMetaData()
+    return {
+        mt = METADATA_TYPE.LINK_CEL,
+        label = uid_gen(),
+        offset_x = 0,
+        offset_y = 0,
+        is_src = false
+    }
+end
+
+------------------------------------------------------------------------------------
 -- Meta Data parse/stringify
 ------------------------------------------------------------------------------------
 --- 出力レイヤーデータを復元する
@@ -82,7 +129,9 @@ end
 local stringify_table = nil
 local function stringify_data(data)
     local types = type(data)
-    if types == "string" then
+    if types == nil then
+        return "nil"
+    elseif types == "string" then
         return "\"" .. string.gsub(data, "\"", "\\\"") .. "\""
     elseif types == "number" or types == "boolean" then
         return tostring(data)
@@ -240,16 +289,30 @@ function SetLayerMetaData(layer, metadata)
 end
 
 function SetCelMetaData(cel, metadata)
-    if metadata == nil or metadata["command"] == nil then
+    if metadata == nil then
         cel.data = ""
-        return
+        cel.color = Color{r=0, g=0, b=0, a=0}
     end
-    if metadata.ver == "v1" then
-        cel.data = stringify_metadata_v1(metadata)
-    else
+    if metadata.mt == METADATA_TYPE.COMMAND then
+        if metadata == nil or metadata["command"] == nil then
+            cel.data = ""
+            return
+        end
+        if metadata.ver == "v1" then
+            cel.data = stringify_metadata_v1(metadata)
+        else
+            cel.data = stringify_metadata_v2(metadata)
+        end
+        cel.color = GetColor(metadata)
+    elseif metadata.mt == METADATA_TYPE.LINK_CEL then
         cel.data = stringify_metadata_v2(metadata)
+        -- TODO 別メソッドに出す
+        if metadata.is_src then
+            cel.color = Color{ r=254, g=91, b=89, a=100 }
+        else
+            cel.color = Color{ r=87, g=185, b=254, a=100 }
+        end
     end
-    cel.color = GetColor(metadata)
 end
 
 function CreateDefaultCommandData()
@@ -258,19 +321,5 @@ function CreateDefaultCommandData()
         export_layers = {},
         include_layers = {},
         exclude_layers = {}
-    }
-end
-
-function CreateDefaultMetaData()
-    return {
-        ver = "v2",
-        inherit = true,
-        command = "mask",
-        export_names = {},
-        include_names = {},
-        exclude_names = {},
-        offset_x = 0,
-        offset_y = 0,
-        locked = false
     }
 end

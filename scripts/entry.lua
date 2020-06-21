@@ -1,6 +1,7 @@
 dofile("./common.lua")
 dofile("./meta_data.lua")
 dofile("./auto-merge.lua")
+dofile("./link-cel.lua")
 dofile("./loop-extending.lua")
 dofile("./merge-down-only-selected.lua")
 dofile("./meta_data_dialog.lua")
@@ -72,6 +73,27 @@ function init(plugin)
     onclick=MergeDownOnlySelectedCels
   }
 
+  plugin:newCommand{
+    id="toUnLinkCels",
+    title="Unlink(with link)",
+    group="cel_popup_new",
+    onclick=UnLinkCels
+  }
+
+  plugin:newCommand{
+    id="toCopyFromSrcCels",
+    title="Update(from link)",
+    group="cel_popup_new",
+    onclick=CopyFromSrcCels
+  }
+
+  plugin:newCommand{
+    id="toSetOffsetFromSrcCels",
+    title="Store Offset(from link)",
+    group="cel_popup_new",
+    onclick=SetOffsetFromSrcCels
+  }
+  
   ------------------------------------------------------------------------------
   -- Dialogs
   ------------------------------------------------------------------------------

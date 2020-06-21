@@ -63,7 +63,11 @@ local function EditDialogShow(metadata, is_layer, save, position)
     end
             
     dlg:combobox{ id="command", label="type", option=metadata["command"],
-        options={ "mask", "imask", "merge", "outline"},
+        options={ 
+            COMMAND_TYPE.MASK,
+            COMMAND_TYPE.INVERSE_MASK,
+            COMMAND_TYPE.MERGE,
+            COMMAND_TYPE.OUTLINE},
         onchange=
         function()
             metadata.command = dlg.data.command
@@ -110,19 +114,19 @@ local function EditDialogShow(metadata, is_layer, save, position)
     --dlg:check{ id="export_to_self", label="export to self", text="", selected=false}
 
     dlg:separator()
-    dlg:label{text="Offset"}
-    local setOffset = function ()
-        metadata.offset_x = dlg.data.offset_x
-        metadata.offset_y = dlg.data.offset_y
-        -- local layer = app.activeLayer
-        -- local cel = layer:cel(app.activeFrame.frameNumber)
-        -- if cel ~= nil then
-        --     SetCelOffsetX(cel, metadata.offset_x, metadata.offset_y)
-        --     app.refresh()
-        -- end
-    end
-    dlg:number{id="offset_x", label="x", decimals=metadata.offset_x, onchange=setOffset}
-    dlg:number{id="offset_y", label="y", decimals=metadata.offset_y, onchange=setOffset}
+    -- dlg:label{text="Offset"}
+    -- local setOffset = function ()
+    --     metadata.offset_x = dlg.data.offset_x
+    --     metadata.offset_y = dlg.data.offset_y
+    --     -- local layer = app.activeLayer
+    --     -- local cel = layer:cel(app.activeFrame.frameNumber)
+    --     -- if cel ~= nil then
+    --     --     SetCelOffsetX(cel, metadata.offset_x, metadata.offset_y)
+    --     --     app.refresh()
+    --     -- end
+    -- end
+    -- dlg:number{id="offset_x", label="x", decimals=metadata.offset_x, onchange=setOffset}
+    -- dlg:number{id="offset_y", label="y", decimals=metadata.offset_y, onchange=setOffset}
 
     dlg:separator()
     dlg:button{ id="apply", text="Apply" ,onclick=function () save(metadata) dlg:close() end}

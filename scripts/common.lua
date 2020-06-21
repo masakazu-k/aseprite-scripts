@@ -145,3 +145,12 @@ function join_table(table1, table2)
     end
     return table1
 end
+
+--- 一意のラベルを生成する
+local random = math.random
+local template ='yxxxxxxx-yxxx'
+function uid_gen()
+    local timestamp = os.time()
+    local id = string.format("%d", timestamp)
+    return tonumber(id)
+end
