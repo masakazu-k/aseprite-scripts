@@ -153,6 +153,15 @@ function Paste(export_layer, frameNumber, metadata)
         else
             SetCelMetaData(cel, nil)
         end
+    else
+        -- コピー結果が空画像の場合、celはnilになる
+        if cel_metadata ~= nil
+        and (cel_metadata.offset_x ~= 0 or cel_metadata.offset_y ~= 0) then
+            -- オフセット情報が消えてしまわないように、元に戻す
+            export_layer.sprite:newCel(export_layer, frameNumber)
+            cel = export_layer:cel(frameNumber)
+            SetCelMetaData(cel, cel_metadata)
+        end
     end
     export_layer.isVisible = isVisible
 end
@@ -247,6 +256,24 @@ local function get_inv_intersection(select1, select2)
     end
     return new_select
 end
+--- src と dst を比較して、削除された領域を新しいSelectionとして取得する
+local function get_delete_area(src, dst)
+    if src.isEmpty or dst.isEmpty then
+        return Selection()
+    end
+
+    local new_select = Selection()
+    local start_x, end_x = src.bounds.x, src.bounds.x + src.bounds.width
+    local start_y, end_y = src.bounds.y, src.bounds.y + src.bounds.height
+    for x=start_x,end_x do
+        for y=start_y,end_y do
+            if src:contains(x,y) and not dst:contains(x,y) then
+                new_select:add(Selection(Rectangle(x,y, 1, 1)))
+            end
+        end
+    end
+    return new_select
+end
 
 -------------------------------------------------------------------------------
 -- 共通ここまで
@@ -308,8 +335,8 @@ local function CreateAutoMask(layer, frameNumbers)
         local include_select = SelectOnLayers(visible_layers, frameNumber)
         if include_select.isEmpty then goto loopend end
 
-        -- マスク領域を取得
-        local intersection_select = get_intersection(include_select, export_select)
+        -- 削除された領域のマスクを取得
+        local intersection_select = get_delete_area(include_select, export_select)
         if intersection_select.isEmpty then goto loopend end
 
         -- フォーカスを変える
@@ -320,8 +347,8 @@ local function CreateAutoMask(layer, frameNumbers)
         layer.sprite.selection:add(intersection_select)
         Fill(mask_layer, frameNumber, metadata)
         app.command.DeselectMask()
-        if metadata.command ~= COMMAND_TYPE.MASK then
-            metadata.command = COMMAND_TYPE.MASK
+        if metadata.command ~= COMMAND_TYPE.INVERSE_MASK then
+            metadata.command = COMMAND_TYPE.INVERSE_MASK
             metadata.inherit = false
         end
         SetCelMetaData(mask_layer:cel(frameNumber), metadata)

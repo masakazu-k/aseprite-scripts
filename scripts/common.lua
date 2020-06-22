@@ -13,37 +13,6 @@ function split(str, ts)
     return t
 end
 
---- nameで指定したレイヤーを検索する
-function search_layer(layers, name, found_layers)
-    for i, layer in ipairs(layers) do
-        if layer.name == name then
-            found_layers[#found_layers+1] = layer
-        end
-        if layer.isGroup then
-            search_layer(layer.layers, name, found_layers)
-        end
-    end
-end
-
---- namesで指定した名前と一致するレイヤーを検索する
-function search_layers(layers, names, found_layers)
-    for i, name in pairs(names) do
-        search_layer(layers, name, found_layers)
-    end
-end
-
---- レイヤーを検索する(正規表現)
-function grep_layer(layers, str, found_layers)
-    for i, layer in ipairs(layers) do
-        if string.match(layer.name, str) ~= nil then
-            found_layers[#found_layers+1] = layer
-        end
-        if layer.isGroup then
-            search_layer(layer.layers, str, found_layers)
-        end
-    end
-end
-
 --- 配列内に指定した要素が存在するかチェックする
 function contains(array, item)
     if array == nil then
@@ -158,6 +127,37 @@ function uid_gen()
 end
 
 -----------------------------------------------------
+
+--- nameで指定したレイヤーを検索する
+function search_layer(layers, name, found_layers)
+    for i, layer in ipairs(layers) do
+        if layer.name == name then
+            found_layers[#found_layers+1] = layer
+        end
+        if layer.isGroup then
+            search_layer(layer.layers, name, found_layers)
+        end
+    end
+end
+
+--- namesで指定した名前と一致するレイヤーを検索する
+function search_layers(layers, names, found_layers)
+    for i, name in pairs(names) do
+        search_layer(layers, name, found_layers)
+    end
+end
+
+--- レイヤーを検索する(正規表現)
+function grep_layer(layers, str, found_layers)
+    for i, layer in ipairs(layers) do
+        if string.match(layer.name, str) ~= nil then
+            found_layers[#found_layers+1] = layer
+        end
+        if layer.isGroup then
+            search_layer(layer.layers, str, found_layers)
+        end
+    end
+end
 
 --- Cel検索結果キャッシュ（数が多いので検索結果をキャッシュする）
 local _src_cel_search_cache = {}

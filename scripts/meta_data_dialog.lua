@@ -1,23 +1,26 @@
---- include_layerと同一階層の一番上に指定名のレイヤーを作成する
+--- base_layerと同一階層の一番上に指定名のレイヤーを作成する
 --- force_createがfalseの場合、同一名のレイヤーが存在しない場合のみ作成する
-local function CreateLayerTop(include_layer, name, fource_create, metadata)
-    if not fource_create then
-        local found_layers = {}
-        search_layer(app.activeSprite.layers, name, found_layers)
-        if #found_layers>0 then
-            local export_metadata = GetLayerMetaData(found_layers[1])
-            if export_metadata == nil then
-                export_metadata = CreateExportLayerMetaData(metadata.label)
-                SetLayerMetaData(found_layers[1], export_metadata)
-            end
-            return found_layers[1]
-        end
-    end
+local function CreateLayerTop(base_layer, name)
     local new_layer = app.activeSprite:newLayer()
-    new_layer.parent = include_layer.parent
-    new_layer.stackIndex = #include_layer.parent.layers
+    new_layer.parent = base_layer.parent
+    new_layer.stackIndex = #base_layer.parent.layers
     new_layer.name = name
     return new_layer
+end
+
+local function CreateMaskLayer(base_layer, mask_metadata)
+    local name = mask_metadata.command .. "(" .. join(mask_metadata.include_names) .. ")"
+    local mask_layer = CreateLayerTop(base_layer, name)
+    SetLayerMetaData(mask_layer, mask_metadata)
+    return mask_layer
+end
+
+local function CreateExportLayer(base_layer, mask_metadata)
+     local name = mask_metadata.export_names[1]
+     local export_metadata = CreateExportLayerMetaData(mask_metadata.label)
+     local export_layer = CreateLayerTop(base_layer, name)
+     SetLayerMetaData(export_layer, export_metadata)
+     return export_layer
 end
 
 local function LayerInputDialog(default, deletable)
@@ -165,16 +168,18 @@ function EditLayerMetaDataDialogShow()
     end
 
     EditDialogShow(metadata, true,
-    function (new_metadata)
+    function (mask_metadata)
         --- TODO 後方互換用の処理 後で取り除く
-        if new_metadata.label == nil then
-            new_metadata.label = uid_gen()
+        if mask_metadata.label == nil then
+            mask_metadata.label = uid_gen()
         end
-        -- エクスポートレイヤーの作成
-        CreateLayerTop(layer, metadata.export_names[1], false, new_metadata)
-        --- TODO 後方互換用の処理 後で取り除く ここまで
+        SetLayerMetaData(layer, mask_metadata)
 
-        SetLayerMetaData(layer, new_metadata)
+        local export_layer = SearchExportLayerByLabel(app.activeSprite, mask_metadata.label)
+        if export_layer == nil then
+            -- エクスポートレイヤーの作成
+            CreateExportLayer(layer, mask_metadata)
+        end
     end, nil)
 end
 
@@ -185,14 +190,18 @@ function EditCelMetaDataDialogShow()
     local layer = app.range.layers[1]
     local frameNumber = app.range.frames[1].frameNumber
     local cel = layer:cel(frameNumber)
-    local metadata = nil
+    local metadata = GetLayerMetaData(layer)
+
+    if metadata == nil 
+    or (metadata.mt ~= METADATA_TYPE.COMMAND and metadata.mt ~= METADATA_TYPE.DEFAULT) then
+        app.alert("This layer is NOT mask layer.")
+        return
+    end
+
     if cel ~= nil then
         metadata = GetCelMetaData(cel)
     else
         metadata = GetLayerMetaData(layer)
-    end
-    if metadata == nil then
-        metadata = CreateMaskMetaData()
     end
 
     EditDialogShow(metadata, false,
@@ -215,15 +224,13 @@ function CreateLayerMetaDataDialogShow()
     local include_names = get_layer_name_list_for_range(app.range.layers)
     local metadata = CreateMaskMetaData()
     metadata.include_names = include_names
-    metadata.export_names = {"$masked"}
+    metadata.export_names = {"$export_layer"}
     
     EditDialogShow(metadata, true,
-    function (new_metadata)
+    function (mask_metadata)
         -- マスクレイヤーの作成
-        local mask_layer = CreateLayerTop(last_layer, "", true)
-        SetLayerMetaData(mask_layer, new_metadata)
-
+        CreateMaskLayer(last_layer, mask_metadata)
         -- エクスポートレイヤーの作成
-        CreateLayerTop(last_layer, metadata.export_names[1], false, new_metadata)
+        CreateExportLayer(last_layer, mask_metadata)
     end, nil)
 end

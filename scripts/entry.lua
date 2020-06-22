@@ -49,14 +49,14 @@ function init(plugin)
   ------------------------------------------------------------------------------
   -- Mask and Link(Src/Dst) Cel Menu
   plugin:newCommand{
-    id="toUpdate_layer",
+    id="toUpdateAll",
     title="Update (Copy & Paste)",
     group="layer_popup_new",
     onclick=UpdateAll
   }
 
   plugin:newCommand{
-    id="toStore_layer",
+    id="toStoreAll",
     title="Store Offset",
     group="layer_popup_new",
     onclick=StoreAll
@@ -67,63 +67,63 @@ function init(plugin)
   ------------------------------------------------------------------------------
   -- Mask and Link(Src/Dst) Cel Menu
   plugin:newCommand{
-    id="toUpdate_cel",
+    id="toUpdateSelected",
     title="Update (Copy & Paste)",
     group="cel_popup_new",
     onclick=UpdateSelected
   }
 
   plugin:newCommand{
-    id="toStore_cel",
+    id="toStoreSelected",
     title="Store Offset",
     group="cel_popup_new",
     onclick=StoreSelected
   }
 
-  -- Mask Menu
-  plugin:newCommand{
-    id="toSelectTargetLayer",
-    title="-> Auto Mask (Only Select)",
-    group="cel_popup_new",
-    onclick=SelectTargetLayer
-  }
-
   plugin:newCommand{
     id="toLockUnlockCels",
-    title="-> Lock/Unlock Merge",
+    title="Lock/Unlock Copy",
     group="cel_popup_new",
     onclick=LockUnlockCels
   }
 
+  -- Mask Menu
   plugin:newCommand{
     id="toCreateMaskCels",
-    title="-> Create Mask",
+    title="Create Mask",
     group="cel_popup_new",
     onclick=CreateMaskCels
+  }
+
+  plugin:newCommand{
+    id="toSelectTargetLayer",
+    title="Select Mask Area",
+    group="cel_popup_new",
+    onclick=SelectTargetLayer
   }
 
   -- Link(Src/Dst) Cel Menu
   plugin:newCommand{
     id="toCreateDstCels",
     title="Set Source Cel",
-    group="cel_popup_new",
+    group="cel_popup_links",
     onclick=CreateDstCels
   }
 
   plugin:newCommand{
     id="toCreateDstCelsAndUnlink",
     title="Set Source Cel(and UnLink)",
-    group="cel_popup_new",
+    group="cel_popup_links",
     onclick=CreateDstCelsAndUnlink
   }
 
   -- Other Cel Menu
-  plugin:newCommand{
-    id="toMergeDownOnlySelected",
-    title="Merge Down(Selected)",
-    group="cel_popup_new",
-    onclick=MergeDownOnlySelectedCels
-  }
+  -- plugin:newCommand{
+  --   id="toMergeDownOnlySelected",
+  --   title="Merge Down(Selected)",
+  --   group="cel_popup_new",
+  --   onclick=MergeDownOnlySelectedCels
+  -- }
 end
   
 function exit(plugin)
