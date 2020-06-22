@@ -259,7 +259,10 @@ end
 -------------------------------------------------------------------------------
 
 --- Exportレイヤの状態からマスク画像を生成する
-local function CreateAutoMask(layer, frameNumber)
+local function CreateAutoMask(layer, frameNumbers)
+    local prev_metadata = nil
+    local command = nil
+    local visible_layers = {}
     local export_layer = layer
     local export_metadata = GetLayerMetaData(layer)
     -- メタデータがないレイヤはスキップ
@@ -269,52 +272,65 @@ local function CreateAutoMask(layer, frameNumber)
 
     -- 関連するマスクレイヤを探す
     local mask_layer = SearchMaskLayerByLabel(app.activeSprite, export_metadata.label)
-    local metadata = GetMetaData(mask_layer, frameNumber)
-    -- メタデータがないフレームはスキップ
-    if metadata == nil then return end
-
-    local export_cel = export_layer:cel(frameNumber)
-    if export_cel == nil then return end
-
-    -- エクスポート先の色がある領域を取得
-    local export_select = MaskByColorOnCel(export_cel)
-    local export_cel_metadata = GetCelMetaData(export_cel)
-    if export_select.isEmpty then return end
-    -- オフセットの分だけ元にずらす
-    export_select.origin = Point{
-        x = export_select.origin.x + export_cel_metadata.offset_x,
-        y = export_select.origin.y + export_cel_metadata.offset_y
-    }
+    if mask_layer == nil then return end
     
-    -- 表示対象レイヤの取得
-    local command = RestoreMetaData(layer.sprite, layer, metadata)
-    local visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
-    export_layer = command.export_layer
-    
-    -- Visible Layer（コピー元）の色がある領域を取得
-    local include_select = SelectOnLayers(visible_layers, frameNumber)
-    if include_select.isEmpty then return end
+    for i, frameNumber in ipairs(frameNumbers) do
+        local metadata = GetMetaData(mask_layer, frameNumber)
+        -- メタデータがないフレームはスキップ
+        if metadata == nil then goto loopend end
 
-    -- マスク領域を取得
-    local intersection_select = get_intersection(include_select, export_select)
-    if intersection_select.isEmpty then return end
+        local export_cel = export_layer:cel(frameNumber)
+        if export_cel == nil then goto loopend end
 
-    -- フォーカスを変える
-    app.activeFrame = mask_layer.sprite.frames[frameNumber]
-    app.activeLayer = mask_layer
+        -- エクスポート先の色がある領域を取得
+        local export_select = MaskByColorOnCel(export_cel)
+        local export_cel_metadata = GetCelMetaData(export_cel)
+        if export_select.isEmpty then goto loopend end
+        
+        if export_cel_metadata ~= nil then
+            -- オフセットの分だけ元にずらす
+            export_select.origin = Point{
+                x = export_select.origin.x + export_cel_metadata.offset_x,
+                y = export_select.origin.y + export_cel_metadata.offset_y
+            }
+        end
+        
+        -- 表示対象レイヤの取得
+        -- 前フレームと処理対象が異なる場合、表示対象レイヤの取得を行う
+        if prev_metadata == nil or not check_sametarget(prev_metadata, metadata) then
+            command = RestoreMetaData(layer.sprite, layer, metadata)
+            -- 表示対象レイヤの取得
+            visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
+            export_layer = command.export_layer
+        end
+        
+        -- Visible Layer（コピー元）の色がある領域を取得
+        local include_select = SelectOnLayers(visible_layers, frameNumber)
+        if include_select.isEmpty then goto loopend end
 
-    -- 塗りつぶし
-    layer.sprite.selection:add(intersection_select)
-    Fill(mask_layer, frameNumber, metadata)
-    app.command.DeselectMask()
-    if metadata.command ~= COMMAND_TYPE.MASK then
-        metadata.command = COMMAND_TYPE.MASK
-        metadata.inherit = false
+        -- マスク領域を取得
+        local intersection_select = get_intersection(include_select, export_select)
+        if intersection_select.isEmpty then goto loopend end
+
+        -- フォーカスを変える
+        app.activeFrame = mask_layer.sprite.frames[frameNumber]
+        app.activeLayer = mask_layer
+
+        -- 塗りつぶし
+        layer.sprite.selection:add(intersection_select)
+        Fill(mask_layer, frameNumber, metadata)
+        app.command.DeselectMask()
+        if metadata.command ~= COMMAND_TYPE.MASK then
+            metadata.command = COMMAND_TYPE.MASK
+            metadata.inherit = false
+        end
+        SetCelMetaData(mask_layer:cel(frameNumber), metadata)
+        prev_metadata = metadata
+        ::loopend::
     end
-    SetCelMetaData(mask_layer:cel(frameNumber), metadata)
 end
 
-local function SaveOffset(layer, frameNumbers)
+function StoreMergeOffsetCels(layer, frameNumbers)
     local prev_metadata = nil
     local command = nil
     local visible_layers = {}
@@ -374,7 +390,7 @@ local function SaveOffset(layer, frameNumbers)
     end
 end
 
-local function doCommand(layer, frameNumbers)
+function DoMergeCommand(layer, frameNumbers)
     local prev_metadata = nil
     local command = nil
     local visible_layers = {}
@@ -543,42 +559,6 @@ local function GetTargetLayerAndFrameNumbers()
     return layers, frameNumbers
 end
 
-function SaveCelsOffset()
-    local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
-    
-    local oldActiveFrame = app.activeFrame
-    local oldActiveLayer = app.activeLayer
-    app.transaction(
-        function()
-            for i,layer in ipairs(layers) do
-                SaveOffset(layer,frameNumbers)
-            end
-        end
-    )
-    CacheReset()
-    app.activeFrame = oldActiveFrame
-    app.activeLayer = oldActiveLayer
-    app.refresh()
-end
-
-function AutoMerge()
-    local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
-    
-    local oldActiveFrame = app.activeFrame
-    local oldActiveLayer = app.activeLayer
-    app.transaction(
-        function()
-            for i,layer in ipairs(layers) do
-                doCommand(layer, frameNumbers)
-            end
-        end
-    )
-    CacheReset()
-    app.activeFrame = oldActiveFrame
-    app.activeLayer = oldActiveLayer
-    app.refresh()
-end
-
 function LockUnlockCels()
     local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
     
@@ -617,9 +597,7 @@ function CreateMaskCels()
     app.transaction(
         function()
             for i,layer in ipairs(layers) do
-                for j,frameNumber in ipairs(frameNumbers) do
-                    CreateAutoMask(layer, frameNumber)
-                end
+                CreateAutoMask(layer, frameNumbers)
             end
         end
     )

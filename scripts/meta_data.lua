@@ -233,7 +233,7 @@ end
 
 function GetLayerMetaData(layer)
     local metadata = nil
-    if layer.data ~= nil then
+    if layer.data ~= nil and #layer.data > 0 then
         metadata = parse_metadata_v2(layer.data)
         if metadata == nil then
             metadata = parse_metadata_v1(layer.data)
@@ -247,7 +247,7 @@ end
 
 function GetCelMetaData(cel)
     local metadata = nil
-    if cel.data ~= nil then
+    if cel.data ~= nil and #cel.data > 0 then
         metadata = parse_metadata_v2(cel.data)
         if metadata == nil then
             metadata = parse_metadata_v1(cel.data)
@@ -337,11 +337,7 @@ function SetCelMetaData(cel, metadata)
             cel.data = ""
             return
         end
-        if metadata.ver == "v1" then
-            cel.data = stringify_metadata_v1(metadata)
-        else
-            cel.data = stringify_metadata_v2(metadata)
-        end
+        cel.data = stringify_metadata_v2(metadata)
         cel.color = GetColor(metadata)
     elseif metadata.mt == METADATA_TYPE.LINK_CEL then
         cel.data = stringify_metadata_v2(metadata)

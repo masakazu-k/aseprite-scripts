@@ -49,10 +49,10 @@ To open the mask layer creation dialog, select the layer you want to mask on the
 ## マスクを実行する (Do Mask)
 
 マスク機能は自動で実行されません。
-タイムライン上でExport Layerのフレーム（セル）を選択し、右クリックメニューから"-> Auto Mask (Copy & Paste)"を選択するとマスク結果がExport Layerにペーストされます。
+タイムライン上でExport Layerのフレーム（セル）を選択し、右クリックメニューから"Update (Copy & Paste)"を選択するとマスク結果がExport Layerにペーストされます。
 
 The mask function is not automatically executed.
-To paste the mask result to the Export Layer, Select the cells of the Export Layer on the timeline, and select "-> Auto Mask (Copy & Paste)" from the right-click menu.
+To paste the mask result to the Export Layer, Select the cells of the Export Layer on the timeline, and select "Update (Copy & Paste)" from the right-click menu.
 
 ## マスクレイヤーの種類 (Type of Mask Layer)
 

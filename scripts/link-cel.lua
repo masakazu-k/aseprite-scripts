@@ -84,8 +84,16 @@ local function CopyFromSrcCel(dstCel)
     CopyImageFromCel(srcCel, dstCel, metadata)
 end
 
+function CopyFromSrcCels(layer, frameNumbers)
+    for j,frameNumber in ipairs(frameNumbers) do
+        local cel = layer:cel(frameNumber)
+        if cel ~= nil then
+            CopyFromSrcCel(cel)
+        end
+    end
+end
 
-local function SetOffsetFromSrcCel(dstCel)
+local function StoreOffsetFromSrcCel(dstCel)
     local metadata = GetCelMetaData(dstCel)
     if metadata == nil or metadata.mt ~= METADATA_TYPE.LINK_CEL then return end
     if metadata.is_src then return end
@@ -99,6 +107,15 @@ local function SetOffsetFromSrcCel(dstCel)
     SetCelMetaData(dstCel, metadata)
 end
 
+function StoreOffsetFromSrcCels(layer, frameNumbers)
+    for j,frameNumber in ipairs(frameNumbers) do
+        local cel = layer:cel(frameNumber)
+        if cel ~= nil then
+            StoreOffsetFromSrcCel(cel)
+        end
+    end
+end
+
 -------------------------------------------------------------------------------
 -- 暫定対処用（app.activeSprite.celsが取れない用）
 -------------------------------------------------------------------------------
@@ -110,7 +127,6 @@ local function add_layer(layer, layers)
     end
     layers[#layers+1] = layer
 end
-
 --- 処理対象のフレームとレイヤを取得する
 local function GetTargetLayerAndFrameNumbers()
     local frameNumbers = {}
@@ -176,40 +192,13 @@ function CreateDstCels()
     app.refresh()
 end
 
-function CopyFromSrcCels()
-    app.transaction(
-        function()
-            -- for i,cel in ipairs(app.range.cels) do
-            --     CopyFromSrcCel(cel)
-            -- end
-            CelsLoop(CopyFromSrcCel)
-        end
-    )
-    CacheReset()
-    app.refresh()
-end
-
---- Source Celからのオフセットを設定する
-function SetOffsetFromSrcCels()
-    app.transaction(
-        function()
-            -- for i,cel in ipairs(app.range.cels) do
-            --     SetOffsetFromSrcCel(cel)
-            -- end
-            CelsLoop(SetOffsetFromSrcCel)
-        end
-    )
-    CacheReset()
-    app.refresh()
-end
-
 function ChangeSourceCel()
     app.transaction(
         function()
             -- for i,cel in ipairs(app.range.cels) do
             --     SetOffsetFromSrcCel(cel)
             -- end
-            CelsLoop(SetOffsetFromSrcCel)
+            -- CelsLoop(SetOffsetFromSrcCel)
         end
     )
     CacheReset()

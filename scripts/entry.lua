@@ -6,6 +6,8 @@ dofile("./loop-extending.lua")
 dofile("./merge-down-only-selected.lua")
 dofile("./meta_data_dialog.lua")
 
+dofile("./menu.lua")
+
 function init(plugin)
   
   ------------------------------------------------------------------------------
@@ -17,48 +19,73 @@ function init(plugin)
     group="sprite_crop",
     onclick=LoopExtending
   }
+  
+  ------------------------------------------------------------------------------
+  -- Dialogs
+  ------------------------------------------------------------------------------
+  plugin:newCommand{
+    id="toCreateLayerMetaDataDialogShow",
+    title="New Mask Layer",
+    group="layer_popup_new",
+    onclick=CreateLayerMetaDataDialogShow
+  }
+
+  plugin:newCommand{
+    id="toEditLayerMetaDataDialogShow",
+    title="Mask Options",
+    group="layer_popup_new",
+    onclick=EditLayerMetaDataDialogShow
+  }
+  
+  plugin:newCommand{
+    id="toEditCelMetaDataDialogShow",
+    title="Mask Options (Cel)",
+    group="cel_popup_new",
+    onclick=EditCelMetaDataDialogShow
+  }
 
   ------------------------------------------------------------------------------
   -- Layer Menu
   ------------------------------------------------------------------------------
-  -- Mask Menu
+  -- Mask and Link(Src/Dst) Cel Menu
   plugin:newCommand{
-    id="toAutoMergeLayer",
-    title="-> Auto Mask (Copy & Paste)",
+    id="toUpdate_layer",
+    title="Update (Copy & Paste)",
     group="layer_popup_new",
-    onclick=AutoMerge
+    onclick=UpdateAll
   }
 
   plugin:newCommand{
-    id="toSaveCelsOffsetLayer",
-    title="-> Store Offset",
+    id="toStore_layer",
+    title="Store Offset",
     group="layer_popup_new",
-    onclick=SaveCelsOffset
+    onclick=StoreAll
   }
 
   ------------------------------------------------------------------------------
   -- Cel Menu
   ------------------------------------------------------------------------------
-  -- Mask Menu
+  -- Mask and Link(Src/Dst) Cel Menu
   plugin:newCommand{
-    id="toAutoMerge",
-    title="-> Auto Mask (Copy & Paste)",
+    id="toUpdate_cel",
+    title="Update (Copy & Paste)",
     group="cel_popup_new",
-    onclick=AutoMerge
+    onclick=UpdateSelected
   }
 
+  plugin:newCommand{
+    id="toStore_cel",
+    title="Store Offset",
+    group="cel_popup_new",
+    onclick=StoreSelected
+  }
+
+  -- Mask Menu
   plugin:newCommand{
     id="toSelectTargetLayer",
     title="-> Auto Mask (Only Select)",
     group="cel_popup_new",
     onclick=SelectTargetLayer
-  }
-
-  plugin:newCommand{
-    id="toSaveCelsOffset",
-    title="-> Store Offset",
-    group="cel_popup_new",
-    onclick=SaveCelsOffset
   }
 
   plugin:newCommand{
@@ -90,50 +117,12 @@ function init(plugin)
     onclick=CreateDstCelsAndUnlink
   }
 
-  plugin:newCommand{
-    id="toCopyFromSrcCels",
-    title="Update from Source Cel",
-    group="cel_popup_new",
-    onclick=CopyFromSrcCels
-  }
-
-  plugin:newCommand{
-    id="toSetOffsetFromSrcCels",
-    title="Store Offset(from link)",
-    group="cel_popup_new",
-    onclick=SetOffsetFromSrcCels
-  }
-
   -- Other Cel Menu
   plugin:newCommand{
     id="toMergeDownOnlySelected",
     title="Merge Down(Selected)",
     group="cel_popup_new",
     onclick=MergeDownOnlySelectedCels
-  }
-  
-  ------------------------------------------------------------------------------
-  -- Dialogs
-  ------------------------------------------------------------------------------
-  plugin:newCommand{
-    id="toCreateLayerMetaDataDialogShow",
-    title="New Mask Layer",
-    group="layer_popup_new",
-    onclick=CreateLayerMetaDataDialogShow
-  }
-
-  plugin:newCommand{
-    id="toEditLayerMetaDataDialogShow",
-    title="Mask Options",
-    group="layer_popup_new",
-    onclick=EditLayerMetaDataDialogShow
-  }
-  
-  plugin:newCommand{
-    id="toEditCelMetaDataDialogShow",
-    title="Mask Options (Cel)",
-    group="cel_popup_new",
-    onclick=EditCelMetaDataDialogShow
   }
 end
   
