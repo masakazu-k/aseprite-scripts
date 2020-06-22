@@ -141,16 +141,146 @@ end
 
 function join_table(table1, table2)
     for i, v in pairs(table2) do
-        table1[i] = table2[i]
+        if table2[i] ~= nil then
+            table1[i] = table2[i]
+        end
     end
     return table1
 end
 
 --- 一意のラベルを生成する
 local random = math.random
-local template ='yxxxxxxx-yxxx'
 function uid_gen()
-    local timestamp = os.time()
-    local id = string.format("%d", timestamp)
+    local timestamp = os.clock() * 10000000
+    local fix = random(0, 9)
+    local id = string.format("%x%d", fix, timestamp)
     return tonumber(id)
+end
+
+-----------------------------------------------------
+
+--- Cel検索結果キャッシュ（数が多いので検索結果をキャッシュする）
+local _src_cel_search_cache = {}
+local _export_layer_search_cache = {}
+local _mask_layer_search_cache = {}
+
+function CacheReset()
+    _src_cel_search_cache = {}
+    _export_layer_search_cache = {}
+    _mask_layer_search_cache = {}
+end
+
+--- labelで指定したソースセルを取得する
+local function is_target_src_cel(cel, label)
+    local metadata = GetCelMetaData(cel)
+    if metadata == nil or metadata.mt ~= METADATA_TYPE.LINK_CEL then
+        return false
+    end
+    if not metadata.is_src then
+        return false
+    end
+    --- キャッシュする
+    _src_cel_search_cache[metadata.label] = cel
+    return metadata.label == label
+end
+
+--- Source Celをラベルから検索する
+function SearchSrcCelByLabel(sprite, label)
+    if _src_cel_search_cache[label] ~= nil then
+        return _src_cel_search_cache[label]
+    end
+
+    for i, cel in ipairs(sprite.cels) do
+        if is_target_src_cel(cel, label) then
+            return cel
+        end
+    end
+    return nil   
+end
+
+local function _SearchExportLayerByLabel(sprite, layer, label)
+    if layer.isGroup then
+        for i, l in ipairs(layer.layers) do
+            local found_layer = _SearchExportLayerByLabel(sprite, l, label)
+            if found_layer ~= nil then
+                return found_layer
+            end
+        end
+    end
+
+    local metadata = GetLayerMetaData(layer)
+    if metadata == nil then
+        return nil
+    end
+
+    if metadata.mt == METADATA_TYPE.EXPORT_LAYER then
+        --- キャッシュする
+        _export_layer_search_cache[metadata.label] = layer
+    else
+        return nil
+    end
+
+    if metadata.label == label then
+        return layer
+    end
+    return nil
+end
+
+--- Export Layerをラベルから検索する
+function SearchExportLayerByLabel(sprite, label)
+    if _export_layer_search_cache[label] ~= nil then
+        return _export_layer_search_cache[label]
+    end
+
+    for i, layer in ipairs(sprite.layers) do
+        local export_layer = _SearchExportLayerByLabel(sprite, layer, label)
+        if export_layer ~= nil then
+            return export_layer
+        end
+    end
+    return nil   
+end
+
+local function _SearchMaskLayerByLabel(sprite, layer, label)
+    if layer.isGroup then
+        for i, l in ipairs(layer.layers) do
+            local found_layer = _SearchMaskLayerByLabel(sprite, l, label)
+            if found_layer ~= nil then
+                return found_layer
+            end
+        end
+    end
+
+    local metadata = GetLayerMetaData(layer)
+    if metadata == nil then
+        return nil
+    end
+
+    if metadata.mt == METADATA_TYPE.COMMAND
+        or metadata.mt == METADATA_TYPE.DEFAULT then
+        --- キャッシュする
+        _mask_layer_search_cache[metadata.label] = layer
+    else
+        return nil
+    end
+
+    if metadata.label == label then
+        return layer
+    end
+    return nil
+end
+
+--- Export Layerをラベルから検索する
+function SearchMaskLayerByLabel(sprite, label)
+    if _mask_layer_search_cache[label] ~= nil then
+        return _mask_layer_search_cache[label]
+    end
+
+    for i, layer in ipairs(sprite.layers) do
+        local export_layer = _SearchMaskLayerByLabel(sprite, layer, label)
+        if export_layer ~= nil then
+            return export_layer
+        end
+    end
+    return nil   
 end

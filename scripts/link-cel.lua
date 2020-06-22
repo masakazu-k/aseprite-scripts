@@ -42,46 +42,30 @@ local function SetDstCelAndUnLink(cel)
             return false
         end
     end
+    --- 既存のセルを削除したら消える事があるのでバックアップ
+    local image = Image(cel.image)
+    local position = cel.position
     --- 新しいセルを作成しリンクを切る
     local dstCel = app.activeSprite:newCel(cel.layer, cel.frame.frameNumber)
     metadata.is_src = false
-    CopyImageFromCel(cel, dstCel, metadata)
+    dstCel.image = image
+    dstCel.position = position
     SetCelMetaData(dstCel, metadata)
     return true
 end
 
-
---- TODO 検索結果キャッシュ（セルは数が多いので検索結果をキャッシュする）
-local _search_cache = {}
-local function CacheReset()
-    _search_cache = {}
-end
-
---- labelで指定したソースセルを取得する
-local function is_target_src_cel(cel, label)
+--- TODO aseprite標準のリンク情報を残して、そこだけ分離したい
+local function SetDstCel(cel)
     local metadata = GetCelMetaData(cel)
-    if metadata == nil or metadata.mt ~= METADATA_TYPE.LINK_CEL then
-        return false
-    end
-    if not metadata.is_src then
-        return false
-    end
-    --- TODO キャッシュする
-    _search_cache[metadata.label] = cel
-    return metadata.label == label
-end
-
-local function SearchSrcCelByLabel(label)
-    if _search_cache[label] ~= nil then
-        return _search_cache[label]
-    end
-
-    for i, cel in ipairs(app.activeSprite.cels) do
-        if is_target_src_cel(cel, label) then
-            return cel
+    if metadata == nil then
+        SetDstCelAndUnLink(cel)
+    else
+        if metadata.mt ~= METADATA_TYPE.LINK_CEL then
+            return false
         end
     end
-    return nil   
+    metadata.is_src = false
+    SetCelMetaData(cel, metadata)
 end
 
 --- ソースセルと原点を比較しオフセットを取得する
@@ -94,7 +78,7 @@ local function CopyFromSrcCel(dstCel)
     if metadata == nil or metadata.mt ~= METADATA_TYPE.LINK_CEL then return end
     if metadata.is_src then return end
 
-    local srcCel = SearchSrcCelByLabel(metadata.label)
+    local srcCel = SearchSrcCelByLabel(app.activeSprite, metadata.label)
     if srcCel == nil then return end
 
     CopyImageFromCel(srcCel, dstCel, metadata)
@@ -106,7 +90,7 @@ local function SetOffsetFromSrcCel(dstCel)
     if metadata == nil or metadata.mt ~= METADATA_TYPE.LINK_CEL then return end
     if metadata.is_src then return end
 
-    local srcCel = SearchSrcCelByLabel(metadata.label)
+    local srcCel = SearchSrcCelByLabel(app.activeSprite, metadata.label)
     if srcCel == nil then return end
     local offset_x,offset_y = GetCelOffsetFromSrcCel(srcCel, dstCel)
 
@@ -115,12 +99,77 @@ local function SetOffsetFromSrcCel(dstCel)
     SetCelMetaData(dstCel, metadata)
 end
 
-function UnLinkCels()
+-------------------------------------------------------------------------------
+-- 暫定対処用（app.activeSprite.celsが取れない用）
+-------------------------------------------------------------------------------
+local function add_layer(layer, layers)
+    if layer.isGroup then
+        for i,l in ipairs(layer.layers) do
+            add_layer(l, layers)
+        end
+    end
+    layers[#layers+1] = layer
+end
+
+--- 処理対象のフレームとレイヤを取得する
+local function GetTargetLayerAndFrameNumbers()
+    local frameNumbers = {}
+    local layers = {}
+    if app.range.type == RangeType.LAYERS then
+        for i,f in ipairs(app.activeSprite.frames) do
+            frameNumbers[#frameNumbers+1] = f.frameNumber
+        end
+    else
+        for i,f in ipairs(app.range.frames) do
+            frameNumbers[#frameNumbers+1] = f.frameNumber
+        end
+    end
+
+    for i,l in ipairs(app.range.layers) do
+        add_layer(l, layers)
+    end
+    return layers, frameNumbers
+end
+
+function CelsLoop(callback)
+    local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
+    for i,layer in ipairs(layers) do
+        for j,frameNumber in ipairs(frameNumbers) do
+            local cel = layer:cel(frameNumber)
+            if cel ~= nil then
+                callback(cel)
+            end
+        end
+    end
+end
+
+-------------------------------------------------------------------------------
+--
+-- メイン処理
+--
+-------------------------------------------------------------------------------
+--- 結合を解除して、新しいDstCelを作成する
+function CreateDstCelsAndUnlink()
     app.transaction(
         function()
-            for i,cel in ipairs(app.range.cels) do
-                SetDstCelAndUnLink(cel)
-            end
+            -- for i,cel in ipairs(app.range.cels) do
+            --     SetDstCelAndUnLink(cel)
+            -- end
+            CelsLoop(SetDstCelAndUnLink)
+        end
+    )
+    CacheReset()
+    app.refresh()
+end
+
+--- 結合を解除せず、新しいDstCelを作成する
+function CreateDstCels()
+    app.transaction(
+        function()
+            -- for i,cel in ipairs(app.range.cels) do
+            --     SetDstCelAndUnLink(cel)
+            -- end
+            CelsLoop(SetDstCel)
         end
     )
     CacheReset()
@@ -130,21 +179,37 @@ end
 function CopyFromSrcCels()
     app.transaction(
         function()
-            for i,cel in ipairs(app.range.cels) do
-                CopyFromSrcCel(cel)
-            end
+            -- for i,cel in ipairs(app.range.cels) do
+            --     CopyFromSrcCel(cel)
+            -- end
+            CelsLoop(CopyFromSrcCel)
         end
     )
     CacheReset()
     app.refresh()
 end
 
+--- Source Celからのオフセットを設定する
 function SetOffsetFromSrcCels()
     app.transaction(
         function()
-            for i,cel in ipairs(app.range.cels) do
-                SetOffsetFromSrcCel(cel)
-            end
+            -- for i,cel in ipairs(app.range.cels) do
+            --     SetOffsetFromSrcCel(cel)
+            -- end
+            CelsLoop(SetOffsetFromSrcCel)
+        end
+    )
+    CacheReset()
+    app.refresh()
+end
+
+function ChangeSourceCel()
+    app.transaction(
+        function()
+            -- for i,cel in ipairs(app.range.cels) do
+            --     SetOffsetFromSrcCel(cel)
+            -- end
+            CelsLoop(SetOffsetFromSrcCel)
         end
     )
     CacheReset()

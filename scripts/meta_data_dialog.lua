@@ -1,3 +1,24 @@
+--- include_layerと同一階層の一番上に指定名のレイヤーを作成する
+--- force_createがfalseの場合、同一名のレイヤーが存在しない場合のみ作成する
+local function CreateLayerTop(include_layer, name, fource_create, metadata)
+    if not fource_create then
+        local found_layers = {}
+        search_layer(app.activeSprite.layers, name, found_layers)
+        if #found_layers>0 then
+            local export_metadata = GetLayerMetaData(found_layers[1])
+            if export_metadata == nil then
+                export_metadata = CreateExportLayerMetaData(metadata.label)
+                SetLayerMetaData(found_layers[1], export_metadata)
+            end
+            return found_layers[1]
+        end
+    end
+    local new_layer = app.activeSprite:newLayer()
+    new_layer.parent = include_layer.parent
+    new_layer.stackIndex = #include_layer.parent.layers
+    new_layer.name = name
+    return new_layer
+end
 
 local function LayerInputDialog(default, deletable)
     local dlg = Dialog("Edit")
@@ -54,7 +75,7 @@ end
 
 local function EditDialogShow(metadata, is_layer, save, position)
     if metadata == nil then
-        metadata = CreateDefaultMetaData()
+        metadata = CreateMaskMetaData()
     end
 
     local dlg = Dialog("Mask Layer Config")
@@ -64,9 +85,9 @@ local function EditDialogShow(metadata, is_layer, save, position)
             
     dlg:combobox{ id="command", label="type", option=metadata["command"],
         options={ 
+            COMMAND_TYPE.MERGE,
             COMMAND_TYPE.MASK,
             COMMAND_TYPE.INVERSE_MASK,
-            COMMAND_TYPE.MERGE,
             COMMAND_TYPE.OUTLINE},
         onchange=
         function()
@@ -111,8 +132,6 @@ local function EditDialogShow(metadata, is_layer, save, position)
         DialogEditLayerList(dlg, "Exclude Layers", metadata.exclude_names, "exclude_layer_", reopen)
     end
 
-    --dlg:check{ id="export_to_self", label="export to self", text="", selected=false}
-
     dlg:separator()
     -- dlg:label{text="Offset"}
     -- local setOffset = function ()
@@ -142,11 +161,19 @@ function EditLayerMetaDataDialogShow()
     local layer = app.range.layers[1]
     local metadata = GetLayerMetaData(layer)
     if metadata == nil then
-        metadata = CreateDefaultMetaData()
+        metadata = CreateMaskMetaData()
     end
 
     EditDialogShow(metadata, true,
     function (new_metadata)
+        --- TODO 後方互換用の処理 後で取り除く
+        if new_metadata.label == nil then
+            new_metadata.label = uid_gen()
+        end
+        -- エクスポートレイヤーの作成
+        CreateLayerTop(layer, metadata.export_names[1], false, new_metadata)
+        --- TODO 後方互換用の処理 後で取り除く ここまで
+
         SetLayerMetaData(layer, new_metadata)
     end, nil)
 end
@@ -165,7 +192,7 @@ function EditCelMetaDataDialogShow()
         metadata = GetLayerMetaData(layer)
     end
     if metadata == nil then
-        metadata = CreateDefaultMetaData()
+        metadata = CreateMaskMetaData()
     end
 
     EditDialogShow(metadata, false,
@@ -180,30 +207,13 @@ function EditCelMetaDataDialogShow()
     end, nil)
 end
 
---- include_layerと同一階層の一番上に指定名のレイヤーを作成する
---- force_createがfalseの場合、同一名のレイヤーが存在しない場合のみ作成する
-local function CreateLayerTop(include_layer, name, fource_create)
-    if not fource_create then
-        local found_layers = {}
-        search_layer(app.activeSprite.layers, name, found_layers)
-        if #found_layers>0 then
-            return found_layers[1]
-        end
-    end
-    local new_layer = app.activeSprite:newLayer()
-    new_layer.parent = include_layer.parent
-    new_layer.stackIndex = #include_layer.parent.layers
-    new_layer.name = name
-    return new_layer
-end
-
 function CreateLayerMetaDataDialogShow()
     if #app.range.layers <= 0 then
         return
     end
     local last_layer = app.range.layers[1]
     local include_names = get_layer_name_list_for_range(app.range.layers)
-    local metadata = CreateDefaultMetaData()
+    local metadata = CreateMaskMetaData()
     metadata.include_names = include_names
     metadata.export_names = {"$masked"}
     
@@ -214,6 +224,6 @@ function CreateLayerMetaDataDialogShow()
         SetLayerMetaData(mask_layer, new_metadata)
 
         -- エクスポートレイヤーの作成
-        CreateLayerTop(last_layer, metadata.export_names[1], false)
+        CreateLayerTop(last_layer, metadata.export_names[1], false, new_metadata)
     end, nil)
 end

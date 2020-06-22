@@ -4,9 +4,16 @@
 
 --- メタデータの種別
 METADATA_TYPE = {
-    DEFAULT  = nil,
-    COMMAND  = 1,
-    LINK_CEL = 2
+    --- 後方互換用
+    DEFAULT    = nil,
+    --- コマンドレイヤ／セル
+    COMMAND    = 1,
+    --- Source/Distinationセル
+    LINK_CEL   = 2,
+    --- Exportレイヤ
+    EXPORT_LAYER = 3,
+    --- Exportセル
+    EXPORT_CEL = 4
 }
 
 --- コマンドの種別
@@ -20,12 +27,14 @@ COMMAND_TYPE = {
 -- Meta Data struct
 ------------------------------------------------------------------------------------
 
-function CreateDefaultMetaData()
+--- マスクレイヤ／セルに設定するメタデータ
+function CreateMaskMetaData()
     return {
         mt = METADATA_TYPE.COMMAND,
         ver = "v2",
+        label = uid_gen(),
         inherit = true,
-        command = COMMAND_TYPE.MASK,
+        command = COMMAND_TYPE.MERGE,
         export_names = {},
         include_names = {},
         exclude_names = {},
@@ -35,13 +44,37 @@ function CreateDefaultMetaData()
     }
 end
 
+--- Exportレイヤに設定するメタデータ
+function CreateExportLayerMetaData(label)
+    return {
+        mt = METADATA_TYPE.EXPORT_LAYER,
+        --- 関連するマスクレイヤのラベル
+        label = label
+    }
+end
+
+--- Exportセルに設定するメタデータ
+function CreateExportCelMetaData(label)
+    return {
+        mt = METADATA_TYPE.EXPORT_CEL,
+        --- 関連するマスクレイヤのラベル
+        label = label,
+        offset_x = 0,
+        offset_y = 0,
+        locked = false
+    }
+end
+
+--- Source/Distinationセルに設定するメタデータ
 function CreateLinkMetaData()
     return {
         mt = METADATA_TYPE.LINK_CEL,
         label = uid_gen(),
+        inherit = true,
         offset_x = 0,
         offset_y = 0,
-        is_src = false
+        is_src = false,
+        locked = false
     }
 end
 
@@ -275,25 +308,31 @@ function GetColor(metadata)
 end
 
 function SetLayerMetaData(layer, metadata)
-    if metadata == nil or metadata["command"] == nil then
+    if metadata == nil then
         layer.data = ""
+        layer.color = Color{r=0, g=0, b=0, a=0}
         return
     end
-    if metadata.ver == "v1" then
-        layer.data = stringify_metadata_v1(metadata)
-        layer.name = layer.data
-    else
-        layer.data = stringify_metadata_v2(metadata)
+    if metadata.mt == METADATA_TYPE.DEFAULT then
+        metadata.mt = METADATA_TYPE.COMMAND
     end
-    layer.color = GetColor(metadata)
+    if metadata.mt == METADATA_TYPE.COMMAND then
+        layer.data = stringify_metadata_v2(metadata)
+        layer.color = GetColor(metadata)
+    elseif metadata.mt == METADATA_TYPE.EXPORT_LAYER then
+        layer.data = stringify_metadata_v2(metadata)
+        layer.color = Color{ r=87, g=185, b=254, a=100 }
+    end
 end
 
 function SetCelMetaData(cel, metadata)
     if metadata == nil then
         cel.data = ""
         cel.color = Color{r=0, g=0, b=0, a=0}
+        return
     end
-    if metadata.mt == METADATA_TYPE.COMMAND then
+    if metadata.mt == METADATA_TYPE.COMMAND
+     or metadata.mt == METADATA_TYPE.DEFAULT then
         if metadata == nil or metadata["command"] == nil then
             cel.data = ""
             return
@@ -312,6 +351,9 @@ function SetCelMetaData(cel, metadata)
         else
             cel.color = Color{ r=87, g=185, b=254, a=100 }
         end
+    elseif metadata.mt == METADATA_TYPE.EXPORT_CEL then
+        cel.data = stringify_metadata_v2(metadata)
+        cel.color = Color{ r=87, g=185, b=254, a=100 }
     end
 end
 

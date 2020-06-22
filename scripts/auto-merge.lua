@@ -19,7 +19,7 @@ local function MaskByColorOnCel(cel)
     local select = Selection()
     for i = 1, #points do
       local p = points[i]
-      local r = Rectangle(p.x, p.y, 1 ,1)
+      local r = Rectangle(p.x, p.y, 1, 1)
       -- マスク対象エリアを選択
       select:add(Selection(r))
     end
@@ -132,13 +132,38 @@ function Paste(export_layer, frameNumber, metadata)
     --- ペーストの実行
     local isVisible = export_layer.isVisible
     export_layer.isVisible = true
+    local cel = export_layer:cel(frameNumber)
+    local cel_metadata = nil
+    if cel ~= nil then
+        cel_metadata = GetCelMetaData(cel)
+    end
+    app.command.ClearCel()
     app.command.Paste()
     app.command.DeselectMask()
-    local cel = export_layer:cel(frameNumber)
+    cel = export_layer:cel(frameNumber)
     if cel ~= nil then
-        SetCelOffsetX(cel, metadata.offset_x, metadata.offset_y)
+        if cel_metadata == nil then
+            cel_metadata = CreateExportCelMetaData(metadata.label)
+            cel_metadata.offset_x = metadata.offset_x
+            cel_metadata.offset_y = metadata.offset_y
+        end
+        if cel_metadata.offset_x ~= 0 or cel_metadata.offset_y ~= 0 then
+            SetCelMetaData(cel, cel_metadata)
+            SetCelOffsetX(cel, cel_metadata.offset_x, cel_metadata.offset_y)
+        else
+            SetCelMetaData(cel, nil)
+        end
     end
     export_layer.isVisible = isVisible
+end
+
+function Fill(layer, frameNumber, metadata)
+    --- ペーストの実行
+    local isVisible = layer.isVisible
+    layer.isVisible = true
+    app.command.ClearCel()
+    app.command.Fill()
+    layer.isVisible = isVisible
 end
 
 --- 選択範囲の原点とセルの原点を比較しオフセットを取得する
@@ -186,6 +211,43 @@ local function is_locked_cel(metadata)
     return metadata.locked
 end
 
+--- select1 と select2の共通部分を新しいSelectionとして取得する
+local function get_intersection(select1, select2)
+    if select1.isEmpty or select2.isEmpty then
+        return Selection()
+    end
+
+    local new_select = Selection()
+    local start_x, end_x = select1.bounds.x, select1.bounds.x + select1.bounds.width
+    local start_y, end_y = select1.bounds.y, select1.bounds.y + select1.bounds.height
+    for x=start_x,end_x do
+        for y=start_y,end_y do
+            if select1:contains(x,y) and select2:contains(x,y) then
+                new_select:add(Selection(Rectangle(x,y, 1, 1)))
+            end
+        end
+    end
+    return new_select
+end
+
+local function get_inv_intersection(select1, select2)
+    if select1.isEmpty or select2.isEmpty then
+        return Selection()
+    end
+
+    local new_select = Selection()
+    local start_x, end_x = select1.bounds.x, select1.bounds.x + select1.bounds.width
+    local start_y, end_y = select1.bounds.y, select1.bounds.y + select1.bounds.height
+    for x=start_x,end_x do
+        for y=start_y,end_y do
+            if not select1:contains(x,y) or not select2:contains(x,y) then
+                new_select:add(Selection(Rectangle(x,y, 1, 1)))
+            end
+        end
+    end
+    return new_select
+end
+
 -------------------------------------------------------------------------------
 -- 共通ここまで
 -------------------------------------------------------------------------------
@@ -196,16 +258,82 @@ end
 --
 -------------------------------------------------------------------------------
 
+--- Exportレイヤの状態からマスク画像を生成する
+local function CreateAutoMask(layer, frameNumber)
+    local export_layer = layer
+    local export_metadata = GetLayerMetaData(layer)
+    -- メタデータがないレイヤはスキップ
+    if export_metadata == nil then return end
+    -- Export Layer以外はスキップ
+    if export_metadata.mt ~= METADATA_TYPE.EXPORT_LAYER then return end
+
+    -- 関連するマスクレイヤを探す
+    local mask_layer = SearchMaskLayerByLabel(app.activeSprite, export_metadata.label)
+    local metadata = GetMetaData(mask_layer, frameNumber)
+    -- メタデータがないフレームはスキップ
+    if metadata == nil then return end
+
+    local export_cel = export_layer:cel(frameNumber)
+    if export_cel == nil then return end
+
+    -- エクスポート先の色がある領域を取得
+    local export_select = MaskByColorOnCel(export_cel)
+    local export_cel_metadata = GetCelMetaData(export_cel)
+    if export_select.isEmpty then return end
+    -- オフセットの分だけ元にずらす
+    export_select.origin = Point{
+        x = export_select.origin.x + export_cel_metadata.offset_x,
+        y = export_select.origin.y + export_cel_metadata.offset_y
+    }
+    
+    -- 表示対象レイヤの取得
+    local command = RestoreMetaData(layer.sprite, layer, metadata)
+    local visible_layers = GetAllVisibleLayers(command.include_layers, command.exclude_layers)
+    export_layer = command.export_layer
+    
+    -- Visible Layer（コピー元）の色がある領域を取得
+    local include_select = SelectOnLayers(visible_layers, frameNumber)
+    if include_select.isEmpty then return end
+
+    -- マスク領域を取得
+    local intersection_select = get_intersection(include_select, export_select)
+    if intersection_select.isEmpty then return end
+
+    -- フォーカスを変える
+    app.activeFrame = mask_layer.sprite.frames[frameNumber]
+    app.activeLayer = mask_layer
+
+    -- 塗りつぶし
+    layer.sprite.selection:add(intersection_select)
+    Fill(mask_layer, frameNumber, metadata)
+    app.command.DeselectMask()
+    if metadata.command ~= COMMAND_TYPE.MASK then
+        metadata.command = COMMAND_TYPE.MASK
+        metadata.inherit = false
+    end
+    SetCelMetaData(mask_layer:cel(frameNumber), metadata)
+end
+
 local function SaveOffset(layer, frameNumbers)
     local prev_metadata = nil
     local command = nil
     local visible_layers = {}
 
     local export_layer = nil
+    local export_metadata = GetLayerMetaData(layer)
+    -- メタデータがないレイヤはスキップ
+    if export_metadata == nil then return end
+    -- Export Layer以外はスキップ
+    if export_metadata.mt ~= METADATA_TYPE.EXPORT_LAYER then return end
+
+    -- 関連するマスクレイヤを探す
+    local mask_layer = SearchMaskLayerByLabel(app.activeSprite, export_metadata.label)
+    -- マスクレイヤがないレイヤはスキップ
+    if mask_layer == nil then return end
 
     for i, frameNumber in ipairs(frameNumbers) do
-        local metadata = GetMetaData(layer, frameNumber)
-        -- メタデータがないセルはスキップ
+        local metadata = GetMetaData(mask_layer, frameNumber)
+        -- メタデータがないフレームはスキップ
         if metadata == nil then goto loopend end
 
         -- 前フレームと処理対象が異なる場合、表示・非表示の切り替え等を行う
@@ -222,20 +350,25 @@ local function SaveOffset(layer, frameNumbers)
         -- Export Layerにcelがない場合、オフセットを取得できないのでスキップ
         if cel == nil then goto loopend end
 
-        -- Export Layerの色がある領域を取得
+        -- Visible Layer（コピー元）の色がある領域を取得
         local select = SelectOnLayers(visible_layers, frameNumber)
         
         -- オフセットを取得
         local offset_x, offset_y = GetCelOffset(cel, select)
-        metadata.offset_x = offset_x
-        metadata.offset_y = offset_y
-        metadata.ver = "v2"
 
-        cel = layer:cel(frameNumber)
-        if cel == nil then
-            cel = app.activeSprite:newCel(layer, frameNumber)
+        if offset_x~=0 or offset_y~=0 then
+            -- セルのメタデータを取得・更新
+            local cel_metadata = GetCelMetaData(cel)
+            if cel_metadata == nil then
+                cel_metadata = CreateExportCelMetaData(metadata.label)
+            end
+            cel_metadata.offset_x = offset_x
+            cel_metadata.offset_y = offset_y
+            SetCelMetaData(cel, cel_metadata)
+        else 
+            -- オフセットがない場合、リセットする
+            SetCelMetaData(cel, nil)
         end
-        SetCelMetaData(cel, metadata)
         prev_metadata = metadata
         ::loopend::
     end
@@ -249,10 +382,20 @@ local function doCommand(layer, frameNumbers)
     local force_visible_layers = {}
 
     local export_layer = nil
+    local export_metadata = GetLayerMetaData(layer)
+    -- メタデータがないレイヤはスキップ
+    if export_metadata == nil then return end
+    -- Export Layer以外はスキップ
+    if export_metadata.mt ~= METADATA_TYPE.EXPORT_LAYER then return end
+
+    -- 関連するマスクレイヤを探す
+    local mask_layer = SearchMaskLayerByLabel(app.activeSprite, export_metadata.label)
+    -- マスクレイヤがないレイヤはスキップ
+    if mask_layer == nil then return end
     local command_type = "none"
 
     for i, frameNumber in ipairs(frameNumbers) do
-        local metadata = GetMetaData(layer, frameNumber)
+        local metadata = GetMetaData(mask_layer, frameNumber)
         -- メタデータがないセルはスキップ
         if metadata == nil then goto loopend end
         -- ロックされているセルはスキップ
@@ -261,7 +404,7 @@ local function doCommand(layer, frameNumbers)
         -- 前フレームと処理対象が異なる場合、表示・非表示の切り替え等を行う
         -- セルに設定が保存されている場合のみ該当
         if prev_metadata == nil or not check_sametarget(prev_metadata, metadata) then
-            command = RestoreMetaData(layer.sprite, layer, metadata)
+            command = RestoreMetaData(layer.sprite, mask_layer, metadata)
             -- 表示レイヤを元に戻す
             -- ResetUnVisibleLayers(force_visible_layers)
             -- 非表示レイヤを元に戻す
@@ -292,7 +435,6 @@ local function doCommand(layer, frameNumbers)
             -- export_layerに移動
             app.activeFrame = export_layer.sprite.frames[frameNumber]
             app.activeLayer = export_layer
-            app.command.ClearCel()
     
             -- コピー
             app.command.CopyMerged()
@@ -309,7 +451,7 @@ local function doCommand(layer, frameNumbers)
     
             -- 領域を選択
             local select = SelectOnLayers(visible_layers, frameNumber)
-            layer.sprite.selection:add(select)
+            export_layer.sprite.selection:add(select)
             app.command.ModifySelection{ modifier="expand", quantity=1, brush="circle" }
     
             -- 塗りつぶし
@@ -320,27 +462,26 @@ local function doCommand(layer, frameNumbers)
         if command_type == "mask" or command_type == "imask" then
             -- コピー領域の選択
             app.command.DeselectMask()
-            local select = SelectOnLayer(layer, frameNumber)
+            local select = SelectOnLayer(mask_layer, frameNumber)
     
     
             if command_type == "imask" then
                 if select.isEmpty then
                     app.command.MaskAll()
                 else
-                    layer.sprite.selection:add(select)
+                    export_layer.sprite.selection:add(select)
                     app.command.InvertMask()
                 end
             else
-                layer.sprite.selection:add(select)
+                export_layer.sprite.selection:add(select)
             end
 
             -- コピー対象が無ければ処理終了
-            if layer.sprite.selection.isEmpty then goto loopend end
+            if export_layer.sprite.selection.isEmpty then goto loopend end
     
             -- export_layerに移動
             app.activeFrame = export_layer.sprite.frames[frameNumber]
             app.activeLayer = export_layer
-            app.command.ClearCel()
     
             -- コピー
             app.command.CopyMerged()
@@ -414,6 +555,7 @@ function SaveCelsOffset()
             end
         end
     )
+    CacheReset()
     app.activeFrame = oldActiveFrame
     app.activeLayer = oldActiveLayer
     app.refresh()
@@ -431,6 +573,7 @@ function AutoMerge()
             end
         end
     )
+    CacheReset()
     app.activeFrame = oldActiveFrame
     app.activeLayer = oldActiveLayer
     app.refresh()
@@ -460,6 +603,27 @@ function LockUnlockCels()
             end
         end
     )
+    CacheReset()
+    app.activeFrame = oldActiveFrame
+    app.activeLayer = oldActiveLayer
+    app.refresh()
+end
+
+function CreateMaskCels()
+    local layers, frameNumbers = GetTargetLayerAndFrameNumbers()
+    
+    local oldActiveFrame = app.activeFrame
+    local oldActiveLayer = app.activeLayer
+    app.transaction(
+        function()
+            for i,layer in ipairs(layers) do
+                for j,frameNumber in ipairs(frameNumbers) do
+                    CreateAutoMask(layer, frameNumber)
+                end
+            end
+        end
+    )
+    CacheReset()
     app.activeFrame = oldActiveFrame
     app.activeLayer = oldActiveLayer
     app.refresh()

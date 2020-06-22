@@ -21,6 +21,7 @@ function init(plugin)
   ------------------------------------------------------------------------------
   -- Layer Menu
   ------------------------------------------------------------------------------
+  -- Mask Menu
   plugin:newCommand{
     id="toAutoMergeLayer",
     title="-> Auto Mask (Copy & Paste)",
@@ -38,6 +39,7 @@ function init(plugin)
   ------------------------------------------------------------------------------
   -- Cel Menu
   ------------------------------------------------------------------------------
+  -- Mask Menu
   plugin:newCommand{
     id="toAutoMerge",
     title="-> Auto Mask (Copy & Paste)",
@@ -67,22 +69,30 @@ function init(plugin)
   }
 
   plugin:newCommand{
-    id="toMergeDownOnlySelected",
-    title="Merge Down(Selected)",
+    id="toCreateMaskCels",
+    title="-> Create Mask",
     group="cel_popup_new",
-    onclick=MergeDownOnlySelectedCels
+    onclick=CreateMaskCels
+  }
+
+  -- Link(Src/Dst) Cel Menu
+  plugin:newCommand{
+    id="toCreateDstCels",
+    title="Set Source Cel",
+    group="cel_popup_new",
+    onclick=CreateDstCels
   }
 
   plugin:newCommand{
-    id="toUnLinkCels",
-    title="Unlink(with link)",
+    id="toCreateDstCelsAndUnlink",
+    title="Set Source Cel(and UnLink)",
     group="cel_popup_new",
-    onclick=UnLinkCels
+    onclick=CreateDstCelsAndUnlink
   }
 
   plugin:newCommand{
     id="toCopyFromSrcCels",
-    title="Update(from link)",
+    title="Update from Source Cel",
     group="cel_popup_new",
     onclick=CopyFromSrcCels
   }
@@ -92,6 +102,14 @@ function init(plugin)
     title="Store Offset(from link)",
     group="cel_popup_new",
     onclick=SetOffsetFromSrcCels
+  }
+
+  -- Other Cel Menu
+  plugin:newCommand{
+    id="toMergeDownOnlySelected",
+    title="Merge Down(Selected)",
+    group="cel_popup_new",
+    onclick=MergeDownOnlySelectedCels
   }
   
   ------------------------------------------------------------------------------
