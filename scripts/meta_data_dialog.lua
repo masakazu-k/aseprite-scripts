@@ -234,3 +234,27 @@ function CreateLayerMetaDataDialogShow()
         CreateExportLayer(last_layer, mask_metadata)
     end, nil)
 end
+
+function PropViewDialogShow()
+    if #app.range.layers <= 0 or #app.range.frames <= 0 then
+        return
+    end
+    local layer = app.range.layers[1]
+    local frameNumber = app.range.frames[1].frameNumber
+    local cel = layer:cel(frameNumber)
+    if cel ~= nil then
+        local metadata = GetMetaData(layer, frameNumber)
+        if metadata == nil then return end
+        local dlg = Dialog("Debug")
+        dlg:label{
+            text = "offset x: "..tostring(metadata.offset_x)
+        }
+        dlg:label{
+            text = "offset y: "..tostring(metadata.offset_y)
+        }
+        dlg:button{
+            text = "Close"
+        }
+        dlg:show()
+    end
+end

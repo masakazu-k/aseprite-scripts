@@ -396,6 +396,14 @@ function StoreMergeOffsetCels(layer, frameNumbers)
         -- Visible Layer（コピー元）の色がある領域を取得
         local select = SelectOnLayers(visible_layers, frameNumber)
         
+        if command.command == COMMAND_TYPE.MASK then
+            local mask_area = SelectOnLayer(mask_layer, frameNumber)
+            select = get_intersection(select, mask_area)
+        elseif command.command == COMMAND_TYPE.INVERSE_MASK then
+            local mask_area = SelectOnLayer(mask_layer, frameNumber)
+            select = get_delete_area(select, mask_area)
+        end
+
         -- オフセットを取得
         local offset_x, offset_y = GetCelOffset(cel, select)
 

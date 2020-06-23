@@ -124,6 +124,13 @@ function init(plugin)
   --   group="cel_popup_new",
   --   onclick=MergeDownOnlySelectedCels
   -- }
+
+  plugin:newCommand{
+    id="toPropViewDialogShow",
+    title="Debug(Selected)",
+    group="cel_popup_new",
+    onclick=PropViewDialogShow
+  }
 end
   
 function exit(plugin)
