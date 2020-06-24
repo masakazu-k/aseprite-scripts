@@ -76,6 +76,23 @@ function join(array, split)
     return joined
 end
 
+--- ２つの配列の共通項目を取得する（重複は削除される）
+function intersect(array1, array2)
+    if array1 == nil or #array1 == 0 then
+        return {}
+    end
+    if array2 == nil or #array2 == 0 then
+        return {}
+    end
+    local new_array = {}
+    for i,v in ipairs(array1) do
+        if contains(array2, v) and not contains(new_array, v) then
+            new_array[#new_array+1] = v
+        end
+    end
+    return new_array
+end
+
 function get_layer_name_list(layers)
     if layers == nil then
         return {}
@@ -120,13 +137,84 @@ end
 --- 一意のラベルを生成する
 local random = math.random
 function uid_gen()
-    local timestamp = os.clock() * 10000000
+    local timestamp = math.floor(os.clock() * 10000000)
     local fix = random(0, 9)
     local id = string.format("%x%d", fix, timestamp)
     return tonumber(id)
 end
 
 -----------------------------------------------------
+-- AsepriteにないAPI
+-----------------------------------------------------
+
+--- baseFrameNumberで指定したセルとリンクしているセルの全FrameNumberを取得する
+function SearchLinkedCels(layer, baseFrameNumber)
+    local cel = layer:cel(baseFrameNumber)
+    if cel == nil then return {} end
+
+    local frameNumbers = {}
+    local oldData = cel.data
+    local uid = tostring(uid_gen())
+    cel.data = uid
+
+    local currentFrame = layer.sprite.frames[1]
+    while currentFrame ~= nil do
+        local cel = layer:cel(currentFrame)
+        if cel ~= nil and cel.data == uid then
+            frameNumbers[#frameNumbers+1] = currentFrame.frameNumber
+        end
+        currentFrame = currentFrame.next
+    end
+    cel.data = oldData
+
+    return frameNumbers
+end
+
+function LinkCels(layer, frameNumbers)
+    app.range.layers = {layer}
+    app.range.frames = frameNumbers
+    app.command.LinkCels()
+end
+
+function CopyCel(layer, srcFrameNumber, dstFrameNumber, isLinked)
+    -- 以下のコードは動かない。
+    -- なぜなら、Celに対するコピーはタイムラインにフォーカスが当たっていないと動かないが
+    -- 現状タイムラインにフォーカスを移動させる方法がないため。
+    -- local oldIsContinuous = layer.isContinuous
+    -- layer.isContinuous = isLinked
+
+    -- app.activeLayer = layer
+    -- app.activeFrame = srcFrameNumber
+    -- app.command.Copy()
+    -- app.activeFrame = dstFrameNumber
+    -- app.command.Paste()
+
+    -- layer.isContinuous = oldIsContinuous
+
+    if isLinked then
+        local srcFrameNumbers = SearchLinkedCels(layer, srcFrameNumber)
+        if #srcFrameNumbers == 0 then return end
+        local minSrcFrameNumber = srcFrameNumbers[1]
+
+        if dstFrameNumber < minSrcFrameNumber then
+            -- 先頭のセルがリンクの基準になるため、一旦先頭のセルにデータをコピーする
+            CopyCel(layer, minSrcFrameNumber, dstFrameNumber, false)
+            -- リンクする
+            LinkCels(layer, {minSrcFrameNumber, dstFrameNumber})
+            -- リンクすると元々のリンクが切れるので復元する
+            LinkCels(layer, srcFrameNumbers)
+        else
+            -- リンクする
+            LinkCels(layer, {minSrcFrameNumber, dstFrameNumber})
+        end
+    else
+        local srcCel = layer:cel(srcFrameNumber)
+        if srcCel == nil then return end
+        local dstCel = layer.sprite:newCel(layer, dstFrameNumber, srcCel.image, srcCel.position)
+        dstCel.color = srcCel.color
+        dstCel.data = srcCel.data
+    end
+end
 
 --- nameで指定したレイヤーを検索する
 function search_layer(layers, name, found_layers)
@@ -159,6 +247,9 @@ function grep_layer(layers, str, found_layers)
     end
 end
 
+-----------------------------------------------------
+-- Extension専用API
+-----------------------------------------------------
 --- Cel検索結果キャッシュ（数が多いので検索結果をキャッシュする）
 local _src_cel_search_cache = {}
 local _export_layer_search_cache = {}
