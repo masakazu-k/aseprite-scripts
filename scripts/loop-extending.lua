@@ -18,10 +18,11 @@ local function copy_deep_cels(layer, from, to, count, tidx)
     if layer.isImage then
         for fi=from, to do
             local target = fi + count*(tidx-1)
-            local src = layer:cel(fi)
-            if src ~= nil then
-                sprite:newCel(layer, target, src.image, src.position)
-            end
+            LinkCels(layer, {fi, target})
+            -- local src = layer:cel(fi)
+            -- if src ~= nil then
+            --     sprite:newCel(layer, target, src.image, src.position)
+            -- end
         end
     else
         -- グループ配下の全レイヤーを処理
