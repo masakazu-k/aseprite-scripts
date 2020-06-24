@@ -28,44 +28,106 @@ local function SetSrcCel(srcCel)
     return true
 end
 
---- 指定のセルをディストセルに設定してリンクを解除する
-local function SetDstCelAndUnLink(cel)
+--- 指定のセルをDstCelに設定してリンクを解除する
+--- @return boolean DstCelを設定できた場合:true
+local function SetDstCelAndUnLink(cel, frameNumbers)
     local metadata = GetCelMetaData(cel)
     if metadata == nil then
-        -- デフォルト
-        -- 一旦どこかにソースセルがいることを信じる仕様にする
+        -- リンクがないセルはDstCelにしない（できない）
+        local linkedFrameNumbers = SearchLinkedCels(cel.layer, cel.frame.frameNumber)
+        if #linkedFrameNumbers <= 1 then return false end
+        if frameNumbers ~= nil then
+            local newLinkedFrameNumbers = intersect(linkedFrameNumbers, frameNumbers)
+            -- 選択範囲外にちゃんとSrcCelが存在するか確認する
+            -- 存在しない場合、DstCelに設定しない
+            if #newLinkedFrameNumbers == #linkedFrameNumbers then
+                return false
+            end
+        end
+
+        -- リンク先セルをSRCセルに設定する
         metadata = CreateLinkMetaData()
         metadata.is_src = true
         SetCelMetaData(cel, metadata)
     else
-        if metadata.mt ~= METADATA_TYPE.LINK_CEL then
+        if metadata.mt == METADATA_TYPE.LINK_CEL and not metadata.is_src then
+            -- DstCelの場合
+            -- もうすでにDstCelの場合は何もしない
+            return false
+        elseif metadata.mt == METADATA_TYPE.LINK_CEL and metadata.is_src then
+            -- SrcCelの場合
+            -- リンクがないセルはDstCelにしない（できない）
+            local linkedFrameNumbers = SearchLinkedCels(cel.layer, cel.frame.frameNumber)
+            if #linkedFrameNumbers <= 1 then return false end
+            if frameNumbers ~= nil then
+                local newLinkedFrameNumbers = intersect(linkedFrameNumbers, frameNumbers)
+                -- 選択範囲外にちゃんとSrcCelが存在するか確認する
+                -- 存在しない場合、DstCelに設定しない
+                if #newLinkedFrameNumbers == #linkedFrameNumbers then
+                    return false
+                end
+            end
+        else
+            -- 別のメタデータがある場合も何もしない
             return false
         end
     end
-    --- 既存のセルを削除したら消える事があるのでバックアップ
+    -- 既存のセルを削除したら消える事があるのでバックアップ
     local image = Image(cel.image)
     local position = cel.position
-    --- 新しいセルを作成しリンクを切る
+
+    -- 新しいセルを作成しリンクを切る
     local dstCel = app.activeSprite:newCel(cel.layer, cel.frame.frameNumber)
-    metadata.is_src = false
     dstCel.image = image
     dstCel.position = position
+
+    -- DstCelに設定する
+    metadata.is_src = false
     SetCelMetaData(dstCel, metadata)
     return true
 end
 
---- TODO aseprite標準のリンク情報を残して、そこだけ分離したい
-local function SetDstCel(cel)
-    local metadata = GetCelMetaData(cel)
-    if metadata == nil then
-        SetDstCelAndUnLink(cel)
-    else
-        if metadata.mt ~= METADATA_TYPE.LINK_CEL then
-            return false
+--- 指定のセルをディストセルに設定してリンクを解除する
+function SetDstCelsAndUnLink(layer, frameNumbers)
+    for j,frameNumber in ipairs(frameNumbers) do
+        local cel = layer:cel(frameNumber)
+        if cel ~= nil then
+            SetDstCelAndUnLink(cel)
         end
     end
-    metadata.is_src = false
-    SetCelMetaData(cel, metadata)
+end
+
+--- aseprite標準のリンク情報を残して、そこだけ分離する
+--- （リンク済みセルリストの内、選択範囲内のセルだけリンクし直す）
+local function SetDstCel(cel, frameNumbers)
+    local linkedFrameNumbers = SearchLinkedCels(cel.layer, cel.frame.frameNumber)
+    local newLinkedFrameNumbers = intersect(linkedFrameNumbers, frameNumbers)
+    -- 選択範囲外にちゃんとSrcCelが存在するか確認する
+    -- 存在しない場合、DstCelに設定しない
+    if #newLinkedFrameNumbers == #linkedFrameNumbers then
+        return false
+    end
+
+    --- SetDstCelAndUnLink後はセルの情報がリセットされるので退避させる
+    local layer = cel.layer
+
+    if SetDstCelAndUnLink(cel) then
+        LinkCels(layer, newLinkedFrameNumbers)
+    end
+    return true
+end
+
+--- 指定のセルをDstCelに設定する
+function SetDstCels(layer, frameNumbers)
+    for j,frameNumber in ipairs(frameNumbers) do
+        local cel = layer:cel(frameNumber)
+        if cel ~= nil then
+            SetDstCel(cel, frameNumbers)
+        end
+    end
+end
+
+function SetSrcCels(layer, dstFrameNumbers, srcFrameNumbers)
 end
 
 --- ソースセルと原点を比較しオフセットを取得する
@@ -73,7 +135,7 @@ function GetCelOffsetFromSrcCel(srcCel, dstCel)
     return srcCel.position.x - dstCel.position.x, srcCel.position.y - dstCel.position.y
 end
 
-local function CopyFromSrcCel(dstCel)
+local function CopyFromSrcCel(dstCel, frameNumbers)
     local metadata = GetCelMetaData(dstCel)
     if metadata == nil or metadata.mt ~= METADATA_TYPE.LINK_CEL then return end
     if metadata.is_src then return end
@@ -88,12 +150,12 @@ function CopyFromSrcCels(layer, frameNumbers)
     for j,frameNumber in ipairs(frameNumbers) do
         local cel = layer:cel(frameNumber)
         if cel ~= nil then
-            CopyFromSrcCel(cel)
+            CopyFromSrcCel(cel, frameNumbers)
         end
     end
 end
 
-local function StoreOffsetFromSrcCel(dstCel)
+local function StoreOffsetFromSrcCel(dstCel, frameNumbers)
     local metadata = GetCelMetaData(dstCel)
     if metadata == nil or metadata.mt ~= METADATA_TYPE.LINK_CEL then return end
     if metadata.is_src then return end
@@ -153,7 +215,7 @@ function CelsLoop(callback)
         for j,frameNumber in ipairs(frameNumbers) do
             local cel = layer:cel(frameNumber)
             if cel ~= nil then
-                callback(cel)
+                callback(cel, frameNumbers)
             end
         end
     end
@@ -192,15 +254,3 @@ function CreateDstCels()
     app.refresh()
 end
 
-function ChangeSourceCel()
-    app.transaction(
-        function()
-            -- for i,cel in ipairs(app.range.cels) do
-            --     SetOffsetFromSrcCel(cel)
-            -- end
-            -- CelsLoop(SetOffsetFromSrcCel)
-        end
-    )
-    CacheReset()
-    app.refresh()
-end
