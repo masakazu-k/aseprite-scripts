@@ -5,11 +5,14 @@ dofile("./link-cel.lua")
 dofile("./loop-extending.lua")
 dofile("./merge-down-only-selected.lua")
 dofile("./meta_data_dialog.lua")
+dofile("./clipboad.lua")
 
 dofile("./menu.lua")
 
 function init(plugin)
-  
+  -- if app.version <= Version("1.2.0") then
+  --   return
+  -- end
   ------------------------------------------------------------------------------
   -- Top Menu
   ------------------------------------------------------------------------------
@@ -102,19 +105,33 @@ function init(plugin)
     onclick=SelectTargetLayer
   }
 
-  -- Link(Src/Dst) Cel Menu
+  -- Dst/Src (Linked) Cel Menu
   plugin:newCommand{
     id="toCreateDstCels",
-    title="Set Source Cel",
+    title="Set Dst Cel",
     group="cel_popup_links",
     onclick=CreateDstCels
   }
 
   plugin:newCommand{
     id="toCreateDstCelsAndUnlink",
-    title="Set Source Cel(and UnLink)",
+    title="Set Dst Cel(and UnLink)",
     group="cel_popup_links",
     onclick=CreateDstCelsAndUnlink
+  }
+
+  plugin:newCommand{
+    id="toCopySrcCels",
+    title="Copy Offset",
+    group="cel_popup_links",
+    onclick=CopySrcCels
+  }
+
+  plugin:newCommand{
+    id="toPasteSrcCels",
+    title="Paste Offset",
+    group="cel_popup_links",
+    onclick=PasteSrcCels
   }
 
   -- Other Cel Menu

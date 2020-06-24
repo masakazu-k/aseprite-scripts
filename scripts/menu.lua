@@ -93,3 +93,36 @@ function StoreAll()
     Store(true)
     app.refresh()
 end
+
+
+function CopySrcCels()
+    local oldActiveFrame = app.activeFrame
+    local oldActiveLayer = app.activeLayer
+    app.transaction(
+        function()
+            local layers, frameNumbers = GetTargetLayerAndFrameNumbers(false)
+            for i,layer in ipairs(layers) do
+                CopyFromRange(layer, frameNumbers)
+            end
+        end
+    )
+    CacheReset()
+    app.activeFrame = oldActiveFrame
+    app.activeLayer = oldActiveLayer
+end
+
+function PasteSrcCels()
+    local oldActiveFrame = app.activeFrame
+    local oldActiveLayer = app.activeLayer
+    app.transaction(
+        function()
+            local layers, frameNumbers = GetTargetLayerAndFrameNumbers(false)
+            for i,layer in ipairs(layers) do
+                PasteToRange(layer, frameNumbers)
+            end
+        end
+    )
+    CacheReset()
+    app.activeFrame = oldActiveFrame
+    app.activeLayer = oldActiveLayer
+end
