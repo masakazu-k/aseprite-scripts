@@ -80,6 +80,18 @@ function PasteToRange(layer, frameNumbers)
             CopyFromSrcCels(layer, dstFrameNumbers)
         end
     elseif layer_metadata.mt == METADATA_TYPE.EXPORT_LAYER then
+        for i,celdata in ipairs(ClipboradData.cels) do
+            local cel = layer:cel(dstFrameNumbers[i])
+            if cel ~= nil then
+                local cel_metadata = GetCelMetaData(cel)
+                if cel_metadata ~= nil then
+                    cel_metadata.offset_x = celdata.cel_metadata.offset_x
+                    cel_metadata.offset_y = celdata.cel_metadata.offset_y
+                    SetCelMetaData(cel, cel_metadata)
+                end
+            end
+            DoMergeCommand(layer, dstFrameNumbers)
+        end
     elseif layer_metadata.mt == METADATA_TYPE.COMMAND
      or layer_metadata.mt == METADATA_TYPE.DEFAULT then
     end    

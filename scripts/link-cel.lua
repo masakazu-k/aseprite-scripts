@@ -221,6 +221,69 @@ function CelsLoop(callback)
     end
 end
 
+function GetAllSrcCelLabels(sprite)
+    local labels = {}
+    for i,cel in ipairs(sprite.cels) do
+        local metadata = GetCelMetaData(cel)
+        if metadata ~= nil and metadata.mt == METADATA_TYPE.LINK_CEL and metadata.is_src then
+            if not contains(labels, metadata.label) then
+                labels[#labels+1] = metadata.label
+            end
+        end
+    end
+    return labels
+end
+
+function GetAllSrcCels(sprite)
+    local cels = {}
+    for i,cel in ipairs(sprite.cels) do
+        local metadata = GetCelMetaData(cel)
+        if metadata ~= nil and metadata.mt == METADATA_TYPE.LINK_CEL and metadata.is_src then
+            cels[#cels+1] = cel
+        end
+    end
+    return cels    
+end
+
+function GetAllDstCels(sprite)
+    local cels = {}
+    for i,cel in ipairs(sprite.cels) do
+        local metadata = GetCelMetaData(cel)
+        if metadata ~= nil and metadata.mt == METADATA_TYPE.LINK_CEL and not metadata.is_src then
+            cels[#cels+1] = cel
+        end
+    end
+    return cels    
+end
+
+function ResetCelsColor(sprite)
+    local labels = GetAllSrcCelLabels(sprite)
+    local labelColors = {}
+    if #labels <= 360 then
+        local step = math.floor(360/#labels)
+        for i = 0, #labels-1 do
+            local c = Color{ h=i*step, s=1.0, v=1.0 }
+            labelColors[tostring(labels[i+1])] = c
+        end
+    else
+        return
+    end
+
+    local dstCels = GetAllDstCels(sprite)
+    for i, cel in ipairs(dstCels) do
+        local metadata = GetCelMetaData(cel)
+        local c = labelColors[tostring(metadata.label)]
+        c.alpha = 80
+        cel.color = c
+    end
+    local srcCels = GetAllSrcCels(sprite)
+    for i, cel in ipairs(srcCels) do
+        local metadata = GetCelMetaData(cel)
+        local c = labelColors[tostring(metadata.label)]
+        c.alpha = 150
+        cel.color = c
+    end
+end
 -------------------------------------------------------------------------------
 --
 -- メイン処理
@@ -253,4 +316,3 @@ function CreateDstCels()
     CacheReset()
     app.refresh()
 end
-
