@@ -9,7 +9,7 @@ local function CreateLayerTop(base_layer, name)
 end
 
 local function CreateMaskLayer(base_layer, mask_metadata)
-    local name = mask_metadata.command .. "(" .. join(mask_metadata.include_names) .. ")"
+    local name = mask_metadata.command .. "(" .. join(mask_metadata.include_names,",") .. ")"
     local mask_layer = CreateLayerTop(base_layer, name)
     SetLayerMetaData(mask_layer, mask_metadata)
     return mask_layer
@@ -251,6 +251,17 @@ function PropViewDialogShow()
         }
         dlg:label{
             text = "offset y: "..tostring(metadata.offset_y)
+        }
+        dlg:button{
+            text = "Auto Color Set",
+            onclick = function ()
+                app.transaction(
+                    function ()
+                        ResetCelsColor(layer.sprite)
+                        app.refresh()
+                    end
+                )
+            end
         }
         dlg:button{
             text = "Close"
